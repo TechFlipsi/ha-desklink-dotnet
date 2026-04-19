@@ -29,7 +29,7 @@ jobs:
 
       - name: Publish
         run: |
-          dotnet publish src/HaDeskLink -c Release -r win-x64 --self-contained -o publish
+          dotnet publish src/HaDeskLink -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o publish
 
       - name: List output
         shell: bash
@@ -61,17 +61,10 @@ jobs:
           name: HA-DeskLink-EXE
           path: dist/
 
-      - name: Create zip
-        run: |
-          cd dist
-          zip -r ../HA_DeskLink_${{ steps.version.outputs.VERSION }}.zip .
-          cd ..
-
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            HA_DeskLink_${{ steps.version.outputs.VERSION }}.zip
+          files: dist/HA_DeskLink.exe
           body: |
             HA DeskLink v${{ steps.version.outputs.VERSION }}
 
