@@ -90,6 +90,7 @@ public class HaApiClient
         catch { return false; }
     }
 
+    /// <summary>Register a sensor entity.</summary>
     public async Task RegisterSensorAsync(SensorData sensor)
     {
         var sensorDict = new Dictionary<string, object>
@@ -108,6 +109,43 @@ public class HaApiClient
         var payload = new { type = "register_sensor", data = sensorDict };
         var json = JsonSerializer.Serialize(payload);
         await _http.PostAsync(WebhookUrl, new StringContent(json, Encoding.UTF8, "application/json"));
+    }
+
+    /// <summary>Register a button entity (for commands like shutdown, restart).</summary>
+    public async Task RegisterButtonAsync(string uniqueId, string name, string icon = "")
+    {
+        var payload = new Dictionary<string, object>
+        {
+            ["type"] = "register_sensor",
+            ["data"] = new Dictionary<string, object>
+            {
+                ["type"] = "button",
+                ["unique_id"] = uniqueId,
+                ["name"] = name,
+                ["state"] = "unavailable",
+            }
+        };
+        if (!string.IsNullOrEmpty(icon)) ((Dictionary<string, object>)payload["data"])["icon"] = icon;
+        var json = JsonSerializer.Serialize(payload);
+        await _http.PostAsync(WebhookUrl, new StringContent(json, Encoding.UTF8, "application/json"));
+    }
+
+    /// <summary>Register all command buttons.</summary>
+    public async Task RegisterCommandButtonsAsync()
+    {
+        var buttons = new[]
+        {
+            ("shutdown", "Herunterfahren", "mdi:power"),
+            ("restart", "Neustart", "mdi:restart"),
+            ("hibernate", "Ruhezustand", "mdi:sleep"),
+            ("lock", "Sperren", "mdi:lock"),
+        };
+
+        foreach (var (id, name, icon) in buttons)
+        {
+            try { await RegisterButtonAsync(id, name, icon); }
+            catch { }
+        }
     }
 
     public async Task UpdateSensorStatesAsync(List<SensorData> sensors)
@@ -144,6 +182,36 @@ public class HaApiClient
         };
         var json = JsonSerializer.Serialize(payload);
         await _http.PostAsync(WebhookUrl, new StringContent(json, Encoding.UTF8, "application/json"));
+    }
+
+    /// <summary>Check GitHub for newer version. Returns download URL if update available, null otherwise.</summary>
+    public async Task<string?> CheckForUpdateAsync()
+    {
+        try
+        {
+            var resp = await _http.GetAsync("https://api.github.com/repos/FKirchweger/ha-desklink-dotnet/releases/latest");
+            if (!resp.IsSuccessStatusCode) return null;
+
+            var data = JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
+            var tagName = data.RootElement.GetProperty("tag_name").GetString() ?? "";
+            if (tagName.StartsWith("v")) tagName = tagName[1..];
+
+            var currentVersion = GetVersion();
+            if (tagName != currentVersion && !string.IsNullOrEmpty(tagName))
+            {
+                // Find the exe asset
+                foreach (var asset in data.RootElement.GetProperty("assets").EnumerateArray())
+                {
+                    var name = asset.GetProperty("name").GetString() ?? "";
+                    if (name.EndsWith(".exe"))
+                    {
+                        return asset.GetProperty("browser_download_url").GetString();
+                    }
+                }
+            }
+        }
+        catch { }
+        return null;
     }
 
     private void SaveRegistration(string haUrl, string token)

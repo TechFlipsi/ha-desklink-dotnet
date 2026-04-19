@@ -1,5 +1,6 @@
 #nullable enable
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -40,6 +41,7 @@ public class DeskLinkApp
     private readonly Config _config;
     private readonly HaApiClient _api;
     private readonly SensorManager _sensors;
+    private readonly WebhookServer _webhookServer;
     private readonly CancellationTokenSource _cts = new();
     private NotifyIcon? _trayIcon;
 
@@ -48,6 +50,7 @@ public class DeskLinkApp
         _config = config;
         _api = new HaApiClient(Config.GetConfigDir(), config.VerifySsl);
         _sensors = new SensorManager();
+        _webhookServer = new WebhookServer(config.HaToken);
     }
 
     public void Run()
@@ -59,7 +62,25 @@ public class DeskLinkApp
             return;
         }
 
+        // Start command webhook server
+        try { _webhookServer.Start(); }
+        catch { }
+
+        // Start sensor loop
         Task.Run(() => SensorLoop(_cts.Token));
+
+        // Check for updates on startup
+        Task.Run(async () =>
+        {
+            var updateUrl = await _api.CheckForUpdateAsync();
+            if (updateUrl != null)
+            {
+                _trayIcon?.ShowBalloonTip(5000, "Update verf\u00fcgbar",
+                    "Neue Version von HA DeskLink verf\u00fcgbar! Klicke auf 'Nach Update suchen'.",
+                    ToolTipIcon.Info);
+            }
+        });
+
         SetupTray();
 
         if (_config.Autostart) Autostart.Enable();
@@ -68,12 +89,14 @@ public class DeskLinkApp
         Application.Run();
 
         _cts.Cancel();
+        _webhookServer.Dispose();
         _sensors.Dispose();
         _trayIcon?.Dispose();
     }
 
     private async void SensorLoop(CancellationToken ct)
     {
+        // Register sensors + buttons
         try
         {
             var initial = _sensors.CollectAll();
@@ -82,11 +105,13 @@ public class DeskLinkApp
                 try { await _api.RegisterSensorAsync(sensor); }
                 catch { }
             }
+            await _api.RegisterCommandButtonsAsync();
             await _api.UpdateSensorStatesAsync(initial);
             await _api.SendLocationAsync();
         }
         catch { }
 
+        // Update loop
         while (!ct.IsCancellationRequested)
         {
             try
@@ -123,6 +148,34 @@ public class DeskLinkApp
             catch { }
         });
 
+        menu.Items.Add("Nach Update suchen", null, async (s, e) =>
+        {
+            try
+            {
+                var updateUrl = await _api.CheckForUpdateAsync();
+                if (updateUrl != null)
+                {
+                    var result = MessageBox.Show(
+                        "Neue Version verf\u00fcgbar! Jetzt herunterladen?",
+                        "Update", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+                    if (result == DialogResult.Yes)
+                    {
+                        Process.Start(new ProcessStartInfo(updateUrl) { UseShellExecute = true });
+                    }
+                }
+                else
+                {
+                    MessageBox.Show("HA DeskLink ist auf dem neuesten Stand.", "Update",
+                        MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+            }
+            catch
+            {
+                MessageBox.Show("Update-Pr\u00fcfung fehlgeschlagen.", "Fehler",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        });
+
         menu.Items.Add("Einstellungen", null, (s, e) =>
             SettingsWindow.Open(_config, Reconnect));
 
@@ -148,6 +201,7 @@ public class DeskLinkApp
                 try { await _api.RegisterSensorAsync(sensor); }
                 catch { }
             }
+            await _api.RegisterCommandButtonsAsync();
         }
         catch { }
     }
