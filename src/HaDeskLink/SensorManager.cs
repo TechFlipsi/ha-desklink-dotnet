@@ -1,18 +1,17 @@
+#nullable enable
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Management;
 using System.Runtime.InteropServices;
-using System.Threading;
 using LibreHardwareMonitor.Hardware;
 
 namespace HaDeskLink;
 
 /// <summary>
 /// Collects system sensor data using LibreHardwareMonitor for temperatures
-/// and WMI/Performance Counters for everything else.
+/// and WMI/DriveInfo for everything else.
 /// </summary>
 public class SensorManager : IDisposable
 {
@@ -35,8 +34,6 @@ public class SensorManager : IDisposable
     public List<SensorData> CollectAll()
     {
         var sensors = new List<SensorData>();
-
-        // Update LibreHardwareMonitor
         _computer.Accept(new UpdateVisitor());
 
         sensors.AddRange(GetCpuSensors());
@@ -44,10 +41,14 @@ public class SensorManager : IDisposable
         sensors.AddRange(GetMemorySensors());
         sensors.AddRange(GetDiskSensors());
         sensors.Add(GetUptime());
-        sensors.Add(GetLastActivity());
-        sensors.Add(GetBattery());
 
-        return sensors.Where(s => s != null).ToList()!;
+        var lastAct = GetLastActivity();
+        if (lastAct != null) sensors.Add(lastAct);
+
+        var battery = GetBattery();
+        if (battery != null) sensors.Add(battery);
+
+        return sensors;
     }
 
     private List<SensorData> GetCpuSensors()
@@ -60,18 +61,18 @@ public class SensorManager : IDisposable
         {
             if (sensor.Value == null) continue;
 
-            switch (sensor.SensorType)
+            if (sensor.SensorType == SensorType.Load && sensor.Name.Contains("Total"))
             {
-                case SensorType.Load when sensor.Name.Contains("Total"):
-                    result.Add(new SensorData("cpu_percent", "CPU Usage",
-                        Math.Round(sensor.Value.Value, 1), "%",
-                        icon: "mdi:cpu-64-bit", stateClass: "measurement"));
-                    break;
-                case SensorType.Temperature when sensor.Name.Contains("Core") || sensor.Name.Contains("Package"):
-                    result.Add(new SensorData("cpu_temperature", "CPU Temperature",
-                        Math.Round(sensor.Value.Value, 1), "\u00b0C",
-                        icon: "mdi:thermometer", stateClass: "measurement"));
-                    break;
+                result.Add(new SensorData("cpu_percent", "CPU Usage",
+                    Math.Round(sensor.Value.Value, 1), "%",
+                    icon: "mdi:cpu-64-bit", stateClass: "measurement"));
+            }
+            else if (sensor.SensorType == SensorType.Temperature &&
+                     (sensor.Name.Contains("Core") || sensor.Name.Contains("Package")))
+            {
+                result.Add(new SensorData("cpu_temperature", "CPU Temperature",
+                    Math.Round(sensor.Value.Value, 1), "\u00b0C",
+                    icon: "mdi:thermometer", stateClass: "measurement"));
             }
         }
         return result;
@@ -87,23 +88,21 @@ public class SensorManager : IDisposable
 
         if (gpu == null) return result;
 
-        var suffix = "";
         foreach (var sensor in gpu.Sensors)
         {
             if (sensor.Value == null) continue;
 
-            switch (sensor.SensorType)
+            if (sensor.SensorType == SensorType.Load && sensor.Name.Contains("Core"))
             {
-                case SensorType.Load when sensor.Name.Contains("Core"):
-                    result.Add(new SensorData($"gpu_load{suffix}", $"GPU Load{suffix}",
-                        Math.Round(sensor.Value.Value, 1), "%",
-                        icon: "mdi:gpu", stateClass: "measurement"));
-                    break;
-                case SensorType.Temperature:
-                    result.Add(new SensorData($"gpu_temperature{suffix}", $"GPU Temperature{suffix}",
-                        Math.Round(sensor.Value.Value, 1), "\u00b0C",
-                        icon: "mdi:gpu", stateClass: "measurement"));
-                    break;
+                result.Add(new SensorData("gpu_load", "GPU Load",
+                    Math.Round(sensor.Value.Value, 1), "%",
+                    icon: "mdi:gpu", stateClass: "measurement"));
+            }
+            else if (sensor.SensorType == SensorType.Temperature)
+            {
+                result.Add(new SensorData("gpu_temperature", "GPU Temperature",
+                    Math.Round(sensor.Value.Value, 1), "\u00b0C",
+                    icon: "mdi:gpu", stateClass: "measurement"));
             }
         }
         return result;
@@ -112,7 +111,6 @@ public class SensorManager : IDisposable
     private List<SensorData> GetMemorySensors()
     {
         var result = new List<SensorData>();
-
         try
         {
             using var searcher = new ManagementObjectSearcher(
@@ -137,14 +135,12 @@ public class SensorManager : IDisposable
             }
         }
         catch { }
-
         return result;
     }
 
     private List<SensorData> GetDiskSensors()
     {
         var result = new List<SensorData>();
-
         try
         {
             foreach (var drive in DriveInfo.GetDrives().Where(d => d.IsReady && d.DriveType == DriveType.Fixed))
@@ -168,7 +164,6 @@ public class SensorManager : IDisposable
             }
         }
         catch { }
-
         return result;
     }
 
@@ -210,10 +205,10 @@ public class SensorManager : IDisposable
     }
 
     [DllImport("user32.dll")]
-    static extern bool GetLastInputInfo(ref LASTINPUTINFO plii);
+    private static extern bool GetLastInputInfo(ref LASTINPUTINFO plii);
 
     [StructLayout(LayoutKind.Sequential)]
-    struct LASTINPUTINFO
+    private struct LASTINPUTINFO
     {
         public uint cbSize;
         public uint dwTime;
@@ -221,7 +216,7 @@ public class SensorManager : IDisposable
 
     private static uint GetIdleTimeMs()
     {
-        var lii = new LASTINPUTINFO { cbSize = (uint)Marshal.SizeOf(typeof(LASTINPUTINFO)) };
+        var lii = new LASTINPUTINFO { cbSize = (uint)Marshal.SizeOf<LASTINPUTINFO>() };
         GetLastInputInfo(ref lii);
         return (uint)Environment.TickCount - lii.dwTime;
     }
@@ -236,9 +231,6 @@ public class SensorManager : IDisposable
     }
 }
 
-/// <summary>
-/// Visitor that triggers a hardware update in LibreHardwareMonitor.
-/// </summary>
 public class UpdateVisitor : IVisitor
 {
     public void VisitComputer(IComputer computer) { }

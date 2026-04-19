@@ -1,6 +1,5 @@
+#nullable enable
 using System;
-using System.IO;
-using System.Text.Json;
 using System.Windows.Forms;
 
 namespace HaDeskLink;
@@ -17,7 +16,6 @@ public class SetupWizard : Form
     public string HaUrl => _urlBox.Text.Trim();
     public string HaToken => _tokenBox.Text.Trim();
     public bool VerifySsl => _sslCheck.Checked;
-    public bool Connected { get; private set; }
 
     public SetupWizard()
     {
@@ -27,7 +25,6 @@ public class SetupWizard : Form
         MaximizeBox = false;
         MinimizeBox = false;
         StartPosition = FormStartPosition.CenterScreen;
-
         InitializeComponents();
     }
 
@@ -43,7 +40,6 @@ public class SetupWizard : Form
         panel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 140));
         panel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
 
-        // Title
         var title = new Label
         {
             Text = "HA DeskLink Setup",
@@ -57,22 +53,18 @@ public class SetupWizard : Form
         panel.Controls.Add(subtitle, 0, 1);
         panel.SetColumnSpan(subtitle, 2);
 
-        // URL
         panel.Controls.Add(new Label { Text = "HA URL:", AutoSize = true }, 0, 2);
         _urlBox = new TextBox { Text = "https://homeassistant.local:8123", Dock = DockStyle.Fill };
         panel.Controls.Add(_urlBox, 1, 2);
 
-        // Token
         panel.Controls.Add(new Label { Text = "Long-Lived Token:", AutoSize = true }, 0, 3);
         _tokenBox = new TextBox { UseSystemPasswordChar = true, Dock = DockStyle.Fill };
         panel.Controls.Add(_tokenBox, 1, 3);
 
-        // SSL
         _sslCheck = new CheckBox { Text = "SSL-Zertifikat pr\u00fcfen", AutoSize = true };
         panel.Controls.Add(_sslCheck, 0, 4);
         panel.SetColumnSpan(_sslCheck, 2);
 
-        // Connect button
         var connectBtn = new Button
         {
             Text = "Verbinden",
@@ -90,7 +82,6 @@ public class SetupWizard : Form
             AutoSize = true,
         };
         panel.Controls.Add(hint, 0, 5);
-        panel.SetColumnSpan(hint, 1);
 
         Controls.Add(panel);
     }
@@ -106,7 +97,6 @@ public class SetupWizard : Form
             var configDir = Config.GetConfigDir();
             var api = new HaApiClient(configDir, _sslCheck.Checked);
             await api.RegisterAsync(_urlBox.Text.Trim(), _tokenBox.Text.Trim());
-            Connected = true;
             DialogResult = DialogResult.OK;
             Close();
         }

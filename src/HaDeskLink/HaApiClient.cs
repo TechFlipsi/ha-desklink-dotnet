@@ -1,3 +1,4 @@
+#nullable enable
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -10,7 +11,6 @@ namespace HaDeskLink;
 
 /// <summary>
 /// Home Assistant mobile_app API client.
-/// Implements registration, sensor management, and webhook protocol.
 /// </summary>
 public class HaApiClient
 {
@@ -20,7 +20,6 @@ public class HaApiClient
     private string _cloudUrl = "";
     private string _deviceId = "";
     private readonly string _configDir;
-    private readonly bool _verifySsl;
 
     private string WebhookUrl => string.IsNullOrEmpty(_cloudUrl)
         ? $"{_haUrl}/api/webhook/{_webhookId}"
@@ -29,11 +28,9 @@ public class HaApiClient
     public HaApiClient(string configDir, bool verifySsl = false)
     {
         _configDir = configDir;
-        _verifySsl = verifySsl;
-
         var handler = new HttpClientHandler
         {
-            ServerCertificateCustomValidationCallback = (msg, cert, chain, errors) => true
+            ServerCertificateCustomValidationCallback = (msg, cert, chain, errors) => !verifySsl || errors == System.Net.Security.SslPolicyErrors.None
         };
         _http = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(15) };
     }
@@ -44,25 +41,24 @@ public class HaApiClient
         _http.DefaultRequestHeaders.Add("Authorization", $"Bearer {token}");
     }
 
-    /// <summary>Register this device with Home Assistant.</summary>
     public async Task RegisterAsync(string haUrl, string token)
     {
         _haUrl = haUrl.TrimEnd('/');
         SetToken(token);
 
-        var hostname = Environment.MachineName;
-        var payload = new
+        var is64 = Environment.Is64BitOperatingSystem;
+        var payload = new Dictionary<string, object>
         {
-            app_id = "ha_desklink",
-            app_name = "HA DeskLink",
-            app_version = GetVersion(),
-            device_name = hostname,
-            device_id = Guid.NewGuid().ToString(),
-            os_name = "Windows",
-            os_version = Environment.OSVersion.VersionString,
-            manufacturer = "Custom",
-            model = $"PC ({(Environment.Is64BitOperatingSystem ? "x64" : "x86")})",
-            supports_encryption = false,
+            ["app_id"] = "ha_desklink",
+            ["app_name"] = "HA DeskLink",
+            ["app_version"] = GetVersion(),
+            ["device_name"] = Environment.MachineName,
+            ["device_id"] = Guid.NewGuid().ToString(),
+            ["os_name"] = "Windows",
+            ["os_version"] = Environment.OSVersion.VersionString,
+            ["manufacturer"] = "Custom",
+            ["model"] = $"PC ({(is64 ? "x64" : "x86")})",
+            ["supports_encryption"] = false,
         };
 
         var json = JsonSerializer.Serialize(payload);
@@ -78,7 +74,6 @@ public class HaApiClient
         SaveRegistration(haUrl, token);
     }
 
-    /// <summary>Load saved registration.</summary>
     public bool LoadRegistration()
     {
         var path = Path.Combine(_configDir, "registration.json");
@@ -95,7 +90,6 @@ public class HaApiClient
         catch { return false; }
     }
 
-    /// <summary>Register a single sensor.</summary>
     public async Task RegisterSensorAsync(SensorData sensor)
     {
         var sensorDict = new Dictionary<string, object>
@@ -116,7 +110,6 @@ public class HaApiClient
         await _http.PostAsync(WebhookUrl, new StringContent(json, Encoding.UTF8, "application/json"));
     }
 
-    /// <summary>Update all sensor states.</summary>
     public async Task UpdateSensorStatesAsync(List<SensorData> sensors)
     {
         var clean = new List<Dictionary<string, object>>();
@@ -137,13 +130,17 @@ public class HaApiClient
         await _http.PostAsync(WebhookUrl, new StringContent(json, Encoding.UTF8, "application/json"));
     }
 
-    /// <summary>Send location update (required by mobile_app).</summary>
     public async Task SendLocationAsync()
     {
-        var payload = new
+        var payload = new Dictionary<string, object>
         {
-            type = "update_location",
-            data = new { gps = new object?[] { null, null }, gps_accuracy = 0, battery = (int?)null }
+            ["type"] = "update_location",
+            ["data"] = new Dictionary<string, object?>
+            {
+                ["gps"] = new object?[] { null, null },
+                ["gps_accuracy"] = 0,
+                ["battery"] = null
+            }
         };
         var json = JsonSerializer.Serialize(payload);
         await _http.PostAsync(WebhookUrl, new StringContent(json, Encoding.UTF8, "application/json"));
@@ -155,8 +152,6 @@ public class HaApiClient
         var data = new { ha_url = haUrl, webhook_id = _webhookId, cloud_url = _cloudUrl, device_id = _deviceId };
         var json = JsonSerializer.Serialize(data, new JsonSerializerOptions { WriteIndented = true });
         File.WriteAllText(Path.Combine(_configDir, "registration.json"), json);
-
-        // Save token separately
         File.WriteAllText(Path.Combine(_configDir, "token.txt"), token);
     }
 
@@ -168,6 +163,6 @@ public class HaApiClient
             if (File.Exists(vfile)) return File.ReadAllText(vfile).Trim();
         }
         catch { }
-        return "1.0.0";
+        return "2.0.0";
     }
 }

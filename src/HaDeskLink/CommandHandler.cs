@@ -1,6 +1,6 @@
+#nullable enable
 using System;
 using System.Diagnostics;
-using System.IO;
 using System.Runtime.InteropServices;
 
 namespace HaDeskLink;
@@ -26,21 +26,11 @@ public static class CommandHandler
             case "lock":
                 LockWorkStation();
                 break;
-            case "screenshot":
-                TakeScreenshot();
-                break;
             default:
                 throw new NotSupportedException($"Unknown command: {command}");
         }
     }
 
     [DllImport("user32.dll")]
-    static extern bool LockWorkStation();
-
-    private static void TakeScreenshot()
-    {
-        // TODO: Implement screenshot capture and save
-        // For now, just log
-        Console.WriteLine("Screenshot command received (not yet implemented in C# version)");
-    }
+    private static extern bool LockWorkStation();
 }

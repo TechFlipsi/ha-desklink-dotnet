@@ -1,15 +1,14 @@
+#nullable enable
 using System;
-using System.IO;
 using System.Net;
 using System.Text.Json;
 using System.Threading;
-using System.Windows.Forms;
 
 namespace HaDeskLink;
 
 /// <summary>
-/// Simple HTTP listener for receiving commands from Home Assistant.
-/// HA can call http://PC-IP:59123/command?token=xxx&action=shutdown
+/// HTTP listener for receiving commands from Home Assistant.
+/// HA calls: http://PC-IP:59123/command?token=xxx&amp;action=shutdown
 /// </summary>
 public class WebhookServer : IDisposable
 {
@@ -18,7 +17,6 @@ public class WebhookServer : IDisposable
     private readonly CancellationTokenSource _cts = new();
     private bool _disposed;
 
-    public string Url => $"http://localhost:59123/command";
     public int Port { get; } = 59123;
 
     public WebhookServer(string token, int port = 59123)
@@ -55,7 +53,6 @@ public class WebhookServer : IDisposable
         var action = query["action"] ?? "";
         var token = query["token"] ?? "";
 
-        // Validate token
         if (token != _token)
         {
             context.Response.StatusCode = 401;

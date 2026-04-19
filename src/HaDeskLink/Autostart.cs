@@ -1,5 +1,5 @@
+#nullable enable
 using System;
-using System.IO;
 using Microsoft.Win32;
 
 namespace HaDeskLink;
@@ -20,7 +20,7 @@ public static class Autostart
 
     public static void Enable()
     {
-        var exePath = System.Reflection.Assembly.GetExecutingAssembly().Location;
+        var exePath = Environment.ProcessPath ?? AppDomain.CurrentDomain.BaseDirectory + "HA_DeskLink.exe";
         using var key = Registry.CurrentUser.OpenSubKey(RunKey, true);
         key?.SetValue(AppName, $"\"{exePath}\"");
     }
