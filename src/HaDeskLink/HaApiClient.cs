@@ -189,7 +189,9 @@ public class HaApiClient
     {
         try
         {
-            var resp = await _http.GetAsync("https://api.github.com/repos/FKirchweger/ha-desklink-dotnet/releases/latest");
+            using var ghClient = new HttpClient();
+            ghClient.DefaultRequestHeaders.Add("User-Agent", "HA-DeskLink");
+            var resp = await ghClient.GetAsync("https://api.github.com/repos/FKirchweger/ha-desklink-dotnet/releases/latest");
             if (!resp.IsSuccessStatusCode) return null;
 
             var data = JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
