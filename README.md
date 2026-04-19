@@ -150,6 +150,8 @@ HA DeskLink erstellt automatisch Sensoren in HA:
 | `sensor.ha_desklink_uptime` | PC-Laufzeit in Stunden |
 | `sensor.ha_desklink_last_activity` | Letzte Maus/Tastatur-Aktivität in Minuten |
 | `sensor.ha_desklink_battery` | Akkustand in % (nur Laptops) |
+| `sensor.ha_desklink_ip_address` | Aktuelle IPv4-Adresse |
+| `binary_sensor.ha_desklink_connectivity` | Online/Offline-Status (Ping zu 8.8.8.8) |
 
 > 💡 Weitere Laufwerke (D:, E: etc.) werden automatisch erkannt. GPU-Sensoren erscheinen nur wenn eine GPU vorhanden ist.
 

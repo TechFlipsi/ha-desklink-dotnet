@@ -51,6 +51,9 @@ public class SensorManager : IDisposable
         var battery = GetBattery();
         if (battery != null) sensors.Add(battery);
 
+        sensors.Add(GetIpAddress());
+        sensors.Add(GetConnectivity());
+
         return sensors;
     }
 
@@ -222,6 +225,51 @@ public class SensorManager : IDisposable
         var lii = new LASTINPUTINFO { cbSize = (uint)Marshal.SizeOf<LASTINPUTINFO>() };
         GetLastInputInfo(ref lii);
         return (uint)Environment.TickCount - lii.dwTime;
+    }
+
+    private static SensorData GetIpAddress()
+    {
+        try
+        {
+            using var searcher = new ManagementObjectSearcher(
+                "SELECT IPAddress FROM Win32_NetworkAdapterConfiguration WHERE IPEnabled = TRUE");
+            foreach (var obj in searcher.Get())
+            {
+                var ips = obj["IPAddress"] as string[];
+                if (ips != null)
+                {
+                    foreach (var ip in ips)
+                    {
+                        // Return first IPv4 address (skip IPv6)
+                        if (ip.Contains("."))
+                        {
+                            return new SensorData("ip_address", "IP Address", ip,
+                                icon: "mdi:ip-network");
+                        }
+                    }
+                }
+            }
+        }
+        catch { }
+        return new SensorData("ip_address", "IP Address", "unavailable",
+            icon: "mdi:ip-network-off");
+    }
+
+    private static SensorData GetConnectivity()
+    {
+        try
+        {
+            var ping = new System.Net.NetworkInformation.Ping();
+            var reply = ping.Send("8.8.8.8", 2000);
+            if (reply.Status == System.Net.NetworkInformation.IPStatus.Success)
+            {
+                return new SensorData("connectivity", "Connectivity", "on",
+                    deviceClass: "connectivity", icon: "mdi:check-network");
+            }
+        }
+        catch { }
+        return new SensorData("connectivity", "Connectivity", "off",
+            deviceClass: "connectivity", icon: "mdi:close-network");
     }
 
     public void Dispose()
