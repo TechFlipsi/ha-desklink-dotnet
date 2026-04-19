@@ -1,14 +1,17 @@
 #nullable enable
 using System;
+using System.IO;
 using System.Net;
+using System.Text;
 using System.Text.Json;
 using System.Threading;
 
 namespace HaDeskLink;
 
 /// <summary>
-/// HTTP listener for receiving commands from Home Assistant.
-/// HA calls: http://PC-IP:59123/command?token=xxx&amp;action=shutdown
+/// HTTP listener for receiving commands and notifications from Home Assistant.
+/// Commands: http://PC-IP:59123/command?token=xxx&amp;action=shutdown
+/// Notifications come via the mobile_app webhook protocol.
 /// </summary>
 public class WebhookServer : IDisposable
 {
@@ -16,6 +19,7 @@ public class WebhookServer : IDisposable
     private readonly string _token;
     private readonly CancellationTokenSource _cts = new();
     private bool _disposed;
+    private NotifyIcon? _trayIcon;
 
     public int Port { get; } = 59123;
 
@@ -25,7 +29,10 @@ public class WebhookServer : IDisposable
         Port = port;
         _listener = new HttpListener();
         _listener.Prefixes.Add($"http://+:{port}/command/");
+        _listener.Prefixes.Add($"http://+:{port}/webhook/");
     }
+
+    public void SetTrayIcon(NotifyIcon? trayIcon) => _trayIcon = trayIcon;
 
     public void Start()
     {
@@ -49,6 +56,33 @@ public class WebhookServer : IDisposable
 
     private void ProcessRequest(HttpListenerContext context)
     {
+        var path = context.Request.Url?.AbsolutePath ?? "";
+
+        if (path.Contains("/webhook"))
+        {
+            // HA mobile_app notification webhook
+            try
+            {
+                using var reader = new StreamReader(context.Request.InputStream, Encoding.UTF8);
+                var body = reader.ReadToEnd();
+
+                if (NotificationHandler.TryHandleNotification(body, _trayIcon))
+                {
+                    RespondJson(context, new { success = true });
+                }
+                else
+                {
+                    RespondJson(context, new { success = true, note = "unknown webhook type" });
+                }
+            }
+            catch (Exception ex)
+            {
+                RespondJson(context, new { success = false, error = ex.Message }, 400);
+            }
+            return;
+        }
+
+        // Command endpoint: /command?token=xxx&action=shutdown
         var query = context.Request.QueryString;
         var action = query["action"] ?? "";
         var token = query["token"] ?? "";
@@ -63,20 +97,21 @@ public class WebhookServer : IDisposable
         try
         {
             CommandHandler.Execute(action);
-            var response = JsonSerializer.Serialize(new { success = true, action });
-            var buffer = System.Text.Encoding.UTF8.GetBytes(response);
-            context.Response.ContentType = "application/json";
-            context.Response.OutputStream.Write(buffer, 0, buffer.Length);
+            RespondJson(context, new { success = true, action });
         }
         catch (Exception ex)
         {
-            var response = JsonSerializer.Serialize(new { success = false, error = ex.Message });
-            var buffer = System.Text.Encoding.UTF8.GetBytes(response);
-            context.Response.ContentType = "application/json";
-            context.Response.StatusCode = 400;
-            context.Response.OutputStream.Write(buffer, 0, buffer.Length);
+            RespondJson(context, new { success = false, error = ex.Message }, 400);
         }
+    }
 
+    private static void RespondJson(HttpListenerContext context, object data, int statusCode = 200)
+    {
+        var json = JsonSerializer.Serialize(data);
+        var buffer = Encoding.UTF8.GetBytes(json);
+        context.Response.ContentType = "application/json";
+        context.Response.StatusCode = statusCode;
+        context.Response.OutputStream.Write(buffer, 0, buffer.Length);
         context.Response.Close();
     }
 

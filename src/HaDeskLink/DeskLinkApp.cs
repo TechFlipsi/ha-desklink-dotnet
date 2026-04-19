@@ -13,6 +13,7 @@ public class DeskLinkApp
     private readonly Config _config;
     private readonly HaApiClient _api;
     private SensorManager? _sensors;
+    private WebhookServer? _webhookServer;
     private readonly CancellationTokenSource _cts = new();
     private NotifyIcon? _trayIcon;
 
@@ -31,7 +32,7 @@ public class DeskLinkApp
             return;
         }
 
-        // Initialize sensor manager - may fail if LibreHardwareMonitor native DLLs missing
+        // Initialize sensor manager
         try
         {
             _sensors = new SensorManager();
@@ -39,9 +40,20 @@ public class DeskLinkApp
         catch (Exception ex)
         {
             File.WriteAllText(Program.LogFile(), $"[SensorManager] LibreHardwareMonitor failed: {ex}");
-            // Fallback: create without LibreHardwareMonitor (no CPU temp but app still works)
             _sensors = null;
         }
+
+        // Setup tray FIRST (needed for notifications)
+        SetupTray();
+
+        // Start webhook server for commands + notifications
+        try
+        {
+            _webhookServer = new WebhookServer(_config.HaToken);
+            _webhookServer.SetTrayIcon(_trayIcon);
+            _webhookServer.Start();
+        }
+        catch { }
 
         // Start sensor loop
         if (_sensors != null)
@@ -58,14 +70,13 @@ public class DeskLinkApp
             }
         });
 
-        SetupTray();
-
         if (_config.Autostart) Autostart.Enable();
         else Autostart.Disable();
 
         Application.Run();
 
         _cts.Cancel();
+        _webhookServer?.Dispose();
         _sensors?.Dispose();
         _trayIcon?.Dispose();
     }
@@ -99,7 +110,6 @@ public class DeskLinkApp
 
     private void SetupTray()
     {
-        // Try to load custom icon, fallback to system icon
         System.Drawing.Icon? appIcon = null;
         try
         {
@@ -209,6 +219,6 @@ public class DeskLinkApp
             if (File.Exists(vfile)) return File.ReadAllText(vfile).Trim();
         }
         catch { }
-        return "2.0.1";
+        return "2.0.3";
     }
 }

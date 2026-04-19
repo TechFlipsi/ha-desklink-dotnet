@@ -1,17 +1,16 @@
 #nullable enable
 using System;
-using System.Diagnostics;
 using System.IO;
-using System.Net.Http;
-using System.Threading.Tasks;
 using System.Windows.Forms;
+using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.WinForms;
 
 namespace HaDeskLink;
 
 /// <summary>
 /// Embedded HA Dashboard using WebView2.
-/// Automatically installs WebView2 Runtime if missing.
+/// Uses its own data directory to avoid Edge access errors.
+/// Automatically offers to install WebView2 Runtime if missing.
 /// </summary>
 public class DashboardWindow : Form
 {
@@ -37,7 +36,13 @@ public class DashboardWindow : Form
 
         try
         {
-            await _webView.EnsureCoreWebView2Async(null);
+            // Use dedicated data directory (fixes Edge read/write access error)
+            var userDataDir = Path.Combine(Config.GetConfigDir(), "WebView2Data");
+            Directory.CreateDirectory(userDataDir);
+
+            var env = await CoreWebView2Environment.CreateAsync(null, userDataDir);
+            await _webView.EnsureCoreWebView2Async(env);
+
             _webView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = true;
             _webView.CoreWebView2.Settings.AreDevToolsEnabled = false;
             _webView.CoreWebView2.Settings.IsStatusBarEnabled = false;
@@ -45,16 +50,14 @@ public class DashboardWindow : Form
         }
         catch (Exception)
         {
-            // WebView2 Runtime missing – offer to install
             if (!_installPrompted)
             {
                 _installPrompted = true;
-                Close(); // Close empty window first
+                Close();
 
                 var result = MessageBox.Show(
                     "WebView2 Runtime wird f\u00fcr das eingebettete Dashboard ben\u00f6tigt.\n\n" +
-                    "Jetzt herunterladen und installieren?\n" +
-                    "(Danach App neu starten)",
+                    "Jetzt herunterladen und installieren?\n(Nach Installation App neu starten)",
                     "WebView2 fehlt",
                     MessageBoxButtons.YesNo, MessageBoxIcon.Question);
 
@@ -62,13 +65,11 @@ public class DashboardWindow : Form
                 {
                     try
                     {
-                        // Download and run WebView2 bootstrapper
-                        var url = "https://go.microsoft.com/fwlink/p/?LinkId=2124703";
                         var tmpPath = Path.Combine(Path.GetTempPath(), "MicrosoftEdgeWebview2Setup.exe");
-                        using var http = new HttpClient();
-                        var bytes = await http.GetByteArrayAsync(url);
+                        using var http = new System.Net.Http.HttpClient();
+                        var bytes = await http.GetByteArrayAsync("https://go.microsoft.com/fwlink/p/?LinkId=2124703");
                         File.WriteAllBytes(tmpPath, bytes);
-                        Process.Start(new ProcessStartInfo(tmpPath) { UseShellExecute = true });
+                        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(tmpPath) { UseShellExecute = true });
                     }
                     catch (Exception ex)
                     {
@@ -79,14 +80,13 @@ public class DashboardWindow : Form
                 }
                 else
                 {
-                    // Fallback: open in default browser
-                    Process.Start(new ProcessStartInfo(_haUrl) { UseShellExecute = true });
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(_haUrl) { UseShellExecute = true });
                 }
             }
             else
             {
                 Close();
-                Process.Start(new ProcessStartInfo(_haUrl) { UseShellExecute = true });
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(_haUrl) { UseShellExecute = true });
             }
         }
     }
