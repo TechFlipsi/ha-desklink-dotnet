@@ -29,7 +29,7 @@ jobs:
 
       - name: Publish
         run: |
-          dotnet publish src/HaDeskLink -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o publish
+          dotnet publish src/HaDeskLink -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishTrimmed=true -p:TrimMode=partial -o publish
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
