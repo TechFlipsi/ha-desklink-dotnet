@@ -4,7 +4,7 @@
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0-windows</TargetFramework>
     <UseWindowsForms>true</UseWindowsForms>
-    <!-- <ApplicationIcon>Assets\icon.ico</ApplicationIcon> -->
+    <ApplicationIcon>Assets\icon.ico</ApplicationIcon>
     <AssemblyName>HA_DeskLink</AssemblyName>
     <RootNamespace>HaDeskLink</RootNamespace>
     <Version>2.0.0</Version>
@@ -19,6 +19,8 @@
 
   <ItemGroup>
     <None Include="..\..\VERSION" Link="VERSION" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Assets\icon.ico" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Assets\icon.jpg" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

@@ -127,7 +127,8 @@ public class DeskLinkApp
     {
         _trayIcon = new NotifyIcon
         {
-            Icon = System.Drawing.SystemIcons.Information,
+            Icon = new System.Drawing.Icon(Path.Combine(AppContext.BaseDirectory, "Assets", "icon.ico")),
+        // Fallback: Icon = System.Drawing.SystemIcons.Information,
             Text = "HA DeskLink",
             Visible = true,
         };
