@@ -152,6 +152,14 @@ HA DeskLink erstellt automatisch Sensoren in HA:
 | `sensor.ha_desklink_battery` | Akkustand in % (nur Laptops) |
 | `sensor.ha_desklink_ip_address` | Aktuelle IPv4-Adresse |
 | `binary_sensor.ha_desklink_connectivity` | Online/Offline-Status (Ping zu 8.8.8.8) |
+| `sensor.ha_desklink_process_count` | Anzahl laufende Prozesse |
+| `sensor.ha_desklink_page_file_percent` | Auslagerungsdatei-Auslastung in % |
+| `sensor.ha_desklink_wifi_ssid` | Verbundenes WiFi-Netzwerk (Name) |
+| `sensor.ha_desklink_wifi_signal` | WiFi-Signalstärke in % |
+| `sensor.ha_desklink_active_window` | Aktives Fenster/Titel |
+| `sensor.ha_desklink_cpu_clock` | CPU-Taktrate in MHz |
+| `sensor.ha_desklink_network_upload` | Upload-Geschwindigkeit in KB/s |
+| `sensor.ha_desklink_network_download` | Download-Geschwindigkeit in KB/s |
 
 > 💡 Weitere Laufwerke (D:, E: etc.) werden automatisch erkannt. GPU-Sensoren erscheinen nur wenn eine GPU vorhanden ist.
 
