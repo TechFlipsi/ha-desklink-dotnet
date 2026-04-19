@@ -1,117 +1,175 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Management;
-using System.Diagnostics;
 using System.Runtime.InteropServices;
+using System.Threading;
+using LibreHardwareMonitor.Hardware;
 
 namespace HaDeskLink;
 
 /// <summary>
-/// Collects system sensor data using WMI and Performance Counters.
+/// Collects system sensor data using LibreHardwareMonitor for temperatures
+/// and WMI/Performance Counters for everything else.
 /// </summary>
-public static class SensorManager
+public class SensorManager : IDisposable
 {
-    public static List<SensorData> CollectAll()
+    private readonly Computer _computer;
+    private bool _disposed;
+
+    public SensorManager()
+    {
+        _computer = new Computer
+        {
+            IsCpuEnabled = true,
+            IsGpuEnabled = true,
+            IsMemoryEnabled = true,
+            IsStorageEnabled = true,
+            IsBatteryEnabled = true,
+        };
+        _computer.Open();
+    }
+
+    public List<SensorData> CollectAll()
     {
         var sensors = new List<SensorData>();
 
-        sensors.Add(GetCpuPercent());
-        sensors.Add(GetCpuTemperature());
-        sensors.Add(GetMemoryPercent());
-        sensors.Add(GetMemoryUsed());
-        sensors.Add(GetMemoryTotal());
-        sensors.Add(GetDiskPercent());
-        sensors.Add(GetDiskFree());
+        // Update LibreHardwareMonitor
+        _computer.Accept(new UpdateVisitor());
+
+        sensors.AddRange(GetCpuSensors());
+        sensors.AddRange(GetGpuSensors());
+        sensors.AddRange(GetMemorySensors());
+        sensors.AddRange(GetDiskSensors());
         sensors.Add(GetUptime());
         sensors.Add(GetLastActivity());
         sensors.Add(GetBattery());
 
-        // GPU via WMI
-        sensors.AddRange(GetGpuStats());
-
         return sensors.Where(s => s != null).ToList()!;
     }
 
-    private static SensorData GetCpuPercent()
+    private List<SensorData> GetCpuSensors()
     {
-        var cpu = new PerformanceCounter("Processor", "% Processor Time", "_Total");
-        cpu.NextValue(); // First call returns 0
-        System.Threading.Thread.Sleep(500);
-        var value = Math.Round(cpu.NextValue(), 1);
-        return new SensorData("cpu_percent", "CPU Usage", value, "%",
-            icon: "mdi:cpu-64-bit", stateClass: "measurement");
+        var result = new List<SensorData>();
+        var cpu = _computer.Hardware.FirstOrDefault(h => h.HardwareType == HardwareType.Cpu);
+        if (cpu == null) return result;
+
+        foreach (var sensor in cpu.Sensors)
+        {
+            if (sensor.Value == null) continue;
+
+            switch (sensor.SensorType)
+            {
+                case SensorType.Load when sensor.Name.Contains("Total"):
+                    result.Add(new SensorData("cpu_percent", "CPU Usage",
+                        Math.Round(sensor.Value.Value, 1), "%",
+                        icon: "mdi:cpu-64-bit", stateClass: "measurement"));
+                    break;
+                case SensorType.Temperature when sensor.Name.Contains("Core") || sensor.Name.Contains("Package"):
+                    result.Add(new SensorData("cpu_temperature", "CPU Temperature",
+                        Math.Round(sensor.Value.Value, 1), "\u00b0C",
+                        icon: "mdi:thermometer", stateClass: "measurement"));
+                    break;
+            }
+        }
+        return result;
     }
 
-    private static SensorData? GetCpuTemperature()
+    private List<SensorData> GetGpuSensors()
     {
+        var result = new List<SensorData>();
+        var gpu = _computer.Hardware.FirstOrDefault(h =>
+            h.HardwareType == HardwareType.GpuNvidia ||
+            h.HardwareType == HardwareType.GpuAmd ||
+            h.HardwareType == HardwareType.GpuIntel);
+
+        if (gpu == null) return result;
+
+        var suffix = "";
+        foreach (var sensor in gpu.Sensors)
+        {
+            if (sensor.Value == null) continue;
+
+            switch (sensor.SensorType)
+            {
+                case SensorType.Load when sensor.Name.Contains("Core"):
+                    result.Add(new SensorData($"gpu_load{suffix}", $"GPU Load{suffix}",
+                        Math.Round(sensor.Value.Value, 1), "%",
+                        icon: "mdi:gpu", stateClass: "measurement"));
+                    break;
+                case SensorType.Temperature:
+                    result.Add(new SensorData($"gpu_temperature{suffix}", $"GPU Temperature{suffix}",
+                        Math.Round(sensor.Value.Value, 1), "\u00b0C",
+                        icon: "mdi:gpu", stateClass: "measurement"));
+                    break;
+            }
+        }
+        return result;
+    }
+
+    private List<SensorData> GetMemorySensors()
+    {
+        var result = new List<SensorData>();
+
         try
         {
             using var searcher = new ManagementObjectSearcher(
-                "root\\WMI", "SELECT CurrentReading FROM MSAcpi_ThermalZoneTemperature");
+                "SELECT TotalVisibleMemorySize, FreePhysicalMemory FROM Win32_OperatingSystem");
             foreach (var obj in searcher.Get())
             {
-                var temp = Convert.ToDouble(obj["CurrentReading"]) / 10.0 - 273.15;
-                return new SensorData("cpu_temperature", "CPU Temperature",
-                    Math.Round(temp, 1), "\u00B0C", icon: "mdi:thermometer", stateClass: "measurement");
+                var totalKB = Convert.ToDouble(obj["TotalVisibleMemorySize"]);
+                var freeKB = Convert.ToDouble(obj["FreePhysicalMemory"]);
+                var usedGB = Math.Round((totalKB - freeKB) / 1048576.0, 2);
+                var totalGB = Math.Round(totalKB / 1048576.0, 2);
+                var freeGB = Math.Round(freeKB / 1048576.0, 2);
+                var percent = Math.Round((1 - freeKB / totalKB) * 100, 1);
+
+                result.Add(new SensorData("memory_percent", "Memory Usage", percent, "%",
+                    icon: "mdi:memory", stateClass: "measurement"));
+                result.Add(new SensorData("memory_used", "Memory Used", usedGB, "GB",
+                    icon: "mdi:memory", stateClass: "measurement"));
+                result.Add(new SensorData("memory_free", "Memory Free", freeGB, "GB",
+                    icon: "mdi:memory", stateClass: "measurement"));
+                result.Add(new SensorData("memory_total", "Memory Total", totalGB, "GB",
+                    icon: "mdi:memory"));
             }
         }
         catch { }
-        return null;
+
+        return result;
     }
 
-    private static SensorData GetMemoryPercent()
+    private List<SensorData> GetDiskSensors()
     {
-        using var mem = new PerformanceCounter("Memory", "% Committed Bytes In Use");
-        mem.NextValue();
-        return new SensorData("memory_percent", "Memory Usage",
-            Math.Round(mem.NextValue(), 1), "%", icon: "mdi:memory", stateClass: "measurement");
-    }
+        var result = new List<SensorData>();
 
-    private static SensorData GetMemoryUsed()
-    {
-        using var mem = new PerformanceCounter("Memory", "Committed Bytes");
-        var gb = Math.Round(mem.NextValue() / (1024 * 1024 * 1024), 2);
-        return new SensorData("memory_used", "Memory Used", gb, "GB",
-            icon: "mdi:memory", stateClass: "measurement");
-    }
-
-    private static SensorData GetMemoryTotal()
-    {
-        using var searcher = new ManagementObjectSearcher(
-            "SELECT TotalVisibleMemorySize FROM Win32_OperatingSystem");
-        foreach (var obj in searcher.Get())
-        {
-            var gb = Math.Round(Convert.ToDouble(obj["TotalVisibleMemorySize"]) / (1024 * 1024), 2);
-            return new SensorData("memory_total", "Memory Total", gb, "GB", icon: "mdi:memory");
-        }
-        return new SensorData("memory_total", "Memory Total", 0, "GB", icon: "mdi:memory");
-    }
-
-    private static SensorData? GetDiskPercent()
-    {
         try
         {
-            var drive = new DriveInfo("C");
-            var total = drive.TotalSize;
-            var free = drive.AvailableFreeSpace;
-            var percent = Math.Round((double)(total - free) / total * 100, 1);
-            return new SensorData("disk_percent", "Disk Usage", percent, "%",
-                icon: "mdi:harddisk", stateClass: "measurement");
-        }
-        catch { return null; }
-    }
+            foreach (var drive in DriveInfo.GetDrives().Where(d => d.IsReady && d.DriveType == DriveType.Fixed))
+            {
+                var label = drive.Name.TrimEnd('\\');
+                var driveKey = label.Replace(":", "").ToLower();
 
-    private static SensorData? GetDiskFree()
-    {
-        try
-        {
-            var drive = new DriveInfo("C");
-            var gb = Math.Round((double)drive.AvailableFreeSpace / (1024 * 1024 * 1024), 2);
-            return new SensorData("disk_free", "Disk Free", gb, "GB",
-                icon: "mdi:harddisk", stateClass: "measurement");
+                var total = (double)drive.TotalSize / (1024 * 1024 * 1024);
+                var free = (double)drive.AvailableFreeSpace / (1024 * 1024 * 1024);
+                var used = total - free;
+                var percent = Math.Round(used / total * 100, 1);
+
+                result.Add(new SensorData($"disk_{driveKey}_percent", $"Disk {label} Usage",
+                    percent, "%", icon: "mdi:harddisk", stateClass: "measurement"));
+                result.Add(new SensorData($"disk_{driveKey}_free", $"Disk {label} Free",
+                    Math.Round(free, 2), "GB", icon: "mdi:harddisk", stateClass: "measurement"));
+                result.Add(new SensorData($"disk_{driveKey}_used", $"Disk {label} Used",
+                    Math.Round(used, 2), "GB", icon: "mdi:harddisk", stateClass: "measurement"));
+                result.Add(new SensorData($"disk_{driveKey}_total", $"Disk {label} Total",
+                    Math.Round(total, 2), "GB", icon: "mdi:harddisk"));
+            }
         }
-        catch { return null; }
+        catch { }
+
+        return result;
     }
 
     private static SensorData GetUptime()
@@ -126,7 +184,7 @@ public static class SensorManager
     {
         try
         {
-            var idle = GetIdleTime();
+            var idle = GetIdleTimeMs();
             var minutes = Math.Round(idle / 60000.0, 1);
             return new SensorData("last_activity", "Last Activity", minutes, "min",
                 icon: "mdi:account-clock", stateClass: "measurement");
@@ -151,30 +209,6 @@ public static class SensorManager
         return null;
     }
 
-    private static List<SensorData> GetGpuStats()
-    {
-        var sensors = new List<SensorData>();
-        try
-        {
-            using var searcher = new ManagementObjectSearcher(
-                "root\\CIMV2", "SELECT * FROM Win32_VideoController");
-            var i = 0;
-            foreach (var obj in searcher.Get())
-            {
-                var suffix = i > 0 ? $"_{i}" : "";
-                // GPU temp/load via WMI is limited; NVAPI would be better
-                // For now, report adapter name as attribute
-                sensors.Add(new SensorData($"gpu_load{suffix}", $"GPU Load{suffix}",
-                    0, "%", icon: "mdi:gpu", stateClass: "measurement"));
-                sensors.Add(new SensorData($"gpu_temperature{suffix}", $"GPU Temperature{suffix}",
-                    0, "\u00B0C", icon: "mdi:gpu", stateClass: "measurement"));
-                i++;
-            }
-        }
-        catch { }
-        return sensors;
-    }
-
     [DllImport("user32.dll")]
     static extern bool GetLastInputInfo(ref LASTINPUTINFO plii);
 
@@ -185,37 +219,30 @@ public static class SensorManager
         public uint dwTime;
     }
 
-    private static uint GetIdleTime()
+    private static uint GetIdleTimeMs()
     {
         var lii = new LASTINPUTINFO { cbSize = (uint)Marshal.SizeOf(typeof(LASTINPUTINFO)) };
         GetLastInputInfo(ref lii);
         return (uint)Environment.TickCount - lii.dwTime;
     }
+
+    public void Dispose()
+    {
+        if (!_disposed)
+        {
+            _computer.Close();
+            _disposed = true;
+        }
+    }
 }
 
-public class SensorData
+/// <summary>
+/// Visitor that triggers a hardware update in LibreHardwareMonitor.
+/// </summary>
+public class UpdateVisitor : IVisitor
 {
-    public string Type { get; } = "sensor";
-    public string UniqueId { get; }
-    public string Name { get; }
-    public object State { get; }
-    public string? UnitOfMeasurement { get; }
-    public string? DeviceClass { get; }
-    public string? Icon { get; }
-    public string? StateClass { get; }
-    public string? EntityCategory { get; }
-
-    public SensorData(string uniqueId, string name, object state, string? unit = null,
-        string? deviceClass = null, string? icon = null, string? stateClass = null,
-        string entityCategory = "diagnostic")
-    {
-        UniqueId = uniqueId;
-        Name = name;
-        State = state;
-        UnitOfMeasurement = unit;
-        DeviceClass = deviceClass;
-        Icon = icon;
-        StateClass = stateClass;
-        EntityCategory = entityCategory;
-    }
+    public void VisitComputer(IComputer computer) { }
+    public void VisitHardware(IHardware hardware) { hardware.Update(); }
+    public void VisitSensor(ISensor sensor) { }
+    public void VisitParameter(IParameter parameter) { }
 }

@@ -1,12 +1,11 @@
 using System;
+using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace HaDeskLink;
 
-/// <summary>
-/// Main application entry point.
-/// System tray app with sensor reporting and command handling.
-/// </summary>
 static class Program
 {
     [STAThread]
@@ -18,73 +17,182 @@ static class Program
         var config = Config.Load();
         var configDir = Config.GetConfigDir();
 
-        // Check for setup mode
-        if (args.Length > 0 && args[0] == "--setup" ||
-            !File.Exists(Path.Combine(configDir, "registration.json")))
+        // Setup mode if no registration exists
+        if (!File.Exists(Path.Combine(configDir, "registration.json")))
         {
-            // TODO: Show setup wizard
-            Console.WriteLine("Setup mode - TODO: implement setup wizard");
+            using var wizard = new SetupWizard();
+            if (wizard.ShowDialog() == DialogResult.OK)
+            {
+                config.HaUrl = wizard.HaUrl;
+                config.HaToken = wizard.HaToken;
+                config.VerifySsl = wizard.VerifySsl;
+                config.Save();
+            }
+            else
+            {
+                return; // User cancelled setup
+            }
+        }
+
+        // Run the tray app
+        var app = new DeskLinkApp(config);
+        app.Run();
+    }
+}
+
+/// <summary>
+/// Main application: System tray, sensor loop, command server.
+/// </summary>
+public class DeskLinkApp
+{
+    private readonly Config _config;
+    private readonly HaApiClient _api;
+    private readonly SensorManager _sensors;
+    private readonly WebhookServer _webhookServer;
+    private readonly CancellationTokenSource _cts = new();
+    private NotifyIcon? _trayIcon;
+
+    public DeskLinkApp(Config config)
+    {
+        _config = config;
+        var configDir = Config.GetConfigDir();
+        _api = new HaApiClient(configDir, config.VerifySsl);
+        _sensors = new SensorManager();
+        _webhookServer = new WebhookServer(config.HaToken);
+    }
+
+    public void Run()
+    {
+        // Connect to HA
+        if (!_api.LoadRegistration())
+        {
+            MessageBox.Show("Keine gespeicherte Verbindung. Bitte App neu starten.",
+                "HA DeskLink", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             return;
         }
 
-        // Create API client and connect
-        var api = new HaApiClient(configDir, config.VerifySsl);
-        if (!api.LoadRegistration())
-        {
-            Console.WriteLine("No saved registration. Run with --setup first.");
-            return;
-        }
+        // Start webhook server for commands
+        try { _webhookServer.Start(); }
+        catch { /* commands from HA unavailable */ }
 
-        // Create tray icon
-        using var tray = new NotifyIcon
+        // Start sensor loop
+        Task.Run(() => SensorLoop(_cts.Token));
+
+        // Setup tray icon
+        SetupTray();
+
+        // Apply autostart
+        if (_config.Autostart) Autostart.Enable();
+        else Autostart.Disable();
+
+        // Run message loop
+        Application.Run();
+
+        // Cleanup
+        _cts.Cancel();
+        _webhookServer.Dispose();
+        _sensors.Dispose();
+        _trayIcon?.Dispose();
+    }
+
+    private async void SensorLoop(CancellationToken ct)
+    {
+        // Register sensors with real values
+        try
+        {
+            var initial = _sensors.CollectAll();
+            foreach (var sensor in initial)
+            {
+                try { await _api.RegisterSensorAsync(sensor); }
+                catch { /* already registered */ }
+            }
+            await _api.UpdateSensorStatesAsync(initial);
+            await _api.SendLocationAsync();
+        }
+        catch { }
+
+        // Update loop
+        while (!ct.IsCancellationRequested)
+        {
+            try
+            {
+                var sensors = _sensors.CollectAll();
+                await _api.UpdateSensorStatesAsync(sensors);
+            }
+            catch { }
+
+            await Task.Delay(_config.SensorInterval * 1000, ct);
+        }
+    }
+
+    private void SetupTray()
+    {
+        _trayIcon = new NotifyIcon
         {
             Icon = System.Drawing.SystemIcons.Information,
             Text = "HA DeskLink",
             Visible = true,
-            ContextMenuStrip = new ContextMenuStrip()
         };
 
-        tray.ContextMenuStrip.Items.Add("Dashboard", null, (s, e) =>
-        {
-            // TODO: Open WebView2 dashboard
-            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(config.HaUrl)
-            { UseShellExecute = true });
-        });
-        tray.ContextMenuStrip.Items.Add("-");
-        tray.ContextMenuStrip.Items.Add("Quit", null, (s, e) => Application.Exit());
+        var menu = new ContextMenuStrip();
 
-        // Start sensor loop
-        var cts = new System.Threading.CancellationTokenSource();
-        var sensorTask = System.Threading.Tasks.Task.Run(async () =>
+        menu.Items.Add("Verbunden", null, (s, e) => { })!.Enabled = false;
+        menu.Items.Add("-");
+
+        menu.Items.Add("Dashboard", null, (s, e) =>
         {
-            // Register sensors first
-            var sensors = SensorManager.CollectAll();
+            if (!string.IsNullOrEmpty(_config.HaUrl))
+                DashboardWindow.Open(_config.HaUrl, _config.HaToken);
+        });
+
+        menu.Items.Add("Sensoren aktualisieren", null, async (s, e) =>
+        {
+            try
+            {
+                var sensors = _sensors.CollectAll();
+                await _api.UpdateSensorStatesAsync(sensors);
+            }
+            catch { }
+        });
+
+        menu.Items.Add("Einstellungen", null, (s, e) =>
+        {
+            SettingsWindow.Open(_config, Reconnect);
+        });
+
+        menu.Items.Add("-");
+
+        var autostartItem = menu.Items.Add("Autostart", null, (s, e) =>
+        {
+            if (Autostart.IsEnabled()) Autostart.Disable();
+            else Autostart.Enable();
+        }) as ToolStripMenuItem;
+        if (autostartItem != null) autostartItem.Checked = Autostart.IsEnabled();
+
+        menu.Items.Add("-");
+        menu.Items.Add("Beenden", null, (s, e) => Application.Exit());
+
+        _trayIcon.ContextMenuStrip = menu;
+        _trayIcon.DoubleClick += (s, e) =>
+        {
+            if (!string.IsNullOrEmpty(_config.HaUrl))
+                DashboardWindow.Open(_config.HaUrl, _config.HaToken);
+        };
+    }
+
+    private async void Reconnect()
+    {
+        try
+        {
+            await _api.RegisterAsync(_config.HaUrl, _config.HaToken);
+            // Re-register sensors
+            var sensors = _sensors.CollectAll();
             foreach (var sensor in sensors)
             {
-                try { await api.RegisterSensorAsync(sensor); }
-                catch { /* already registered */ }
+                try { await _api.RegisterSensorAsync(sensor); }
+                catch { }
             }
-
-            // Send location
-            try { await api.SendLocationAsync(); } catch { }
-
-            // Loop
-            while (!cts.Token.IsCancellationRequested)
-            {
-                try
-                {
-                    var current = SensorManager.CollectAll();
-                    await api.UpdateSensorStatesAsync(current);
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Sensor update failed: {ex.Message}");
-                }
-                await System.Threading.Tasks.Task.Delay(config.SensorInterval * 1000, cts.Token);
-            }
-        }, cts.Token);
-
-        Application.Run();
-        cts.Cancel();
+        }
+        catch { }
     }
 }
