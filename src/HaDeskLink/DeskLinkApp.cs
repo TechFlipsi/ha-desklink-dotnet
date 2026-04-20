@@ -67,16 +67,21 @@ public class DeskLinkApp
         if (_sensors != null)
             Task.Run(() => SensorLoop(_cts.Token));
 
-        // Check for updates
+        // Check for updates and auto-install
         var channel = _config.UpdateChannel;
         Task.Run(async () =>
         {
-            var updateUrl = await _api.CheckForUpdateAsync(includePrerelease: channel == "prerelease");
-            if (updateUrl != null)
+            try
             {
-                _trayIcon?.ShowBalloonTip(5000, "Update verf\u00fcgbar",
-                    "Neue Version von HA DeskLink verf\u00fcgbar!", ToolTipIcon.Info);
+                var updateUrl = await _api.CheckForUpdateAsync(includePrerelease: channel == "prerelease");
+                if (updateUrl != null)
+                {
+                    _trayIcon?.ShowBalloonTip(5000, "Update verf\u00fcgbar",
+                        "Neue Version wird heruntergeladen und installiert...", ToolTipIcon.Info);
+                    await AutoUpdate(updateUrl);
+                }
             }
+            catch { }
         });
 
         if (_config.Autostart) Autostart.Enable();
