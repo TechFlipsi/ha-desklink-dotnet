@@ -78,6 +78,9 @@ public class HaWebSocketClient : IDisposable
                     support_confirm = false
                 });
 
+                // Notify user that WebSocket is connected
+                _trayIcon?.ShowBalloonTip(3000, "HA DeskLink", "Verbunden mit Home Assistant (WebSocket)", ToolTipIcon.Info);
+
                 // Step 5: Listen for notifications
                 await ListenLoop();
             }
