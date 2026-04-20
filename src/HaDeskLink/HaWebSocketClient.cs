@@ -1,6 +1,6 @@
 #nullable enable
 using System;
-using System.Net.Http;
+using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
@@ -11,24 +11,29 @@ namespace HaDeskLink;
 
 /// <summary>
 /// Connects to Home Assistant via WebSocket to receive push notifications.
-/// Uses the mobile_app push_websocket_channel protocol so no inbound port/IP is needed.
-/// Works for all users regardless of network setup.
+/// Uses the mobile_app push_notification_channel protocol.
+/// Works for all users regardless of network setup - no inbound port needed.
 /// </summary>
 public class HaWebSocketClient : IDisposable
 {
     private readonly string _haUrl;
     private readonly string _token;
+    private readonly string _webhookId;
     private readonly NotifyIcon? _trayIcon;
     private readonly Action<string>? _onCommand;
-    private System.Net.WebSockets.ClientWebSocket? _ws;
+    private ClientWebSocket? _ws;
     private CancellationTokenSource? _cts;
     private bool _disposed;
     private int _msgId = 1;
+    private bool _connected;
 
-    public HaWebSocketClient(string haUrl, string token, NotifyIcon? trayIcon, Action<string>? onCommand = null)
+    public bool IsConnected => _connected;
+
+    public HaWebSocketClient(string haUrl, string token, string webhookId, NotifyIcon? trayIcon, Action<string>? onCommand = null)
     {
         _haUrl = haUrl.TrimEnd('/');
         _token = token;
+        _webhookId = webhookId;
         _trayIcon = trayIcon;
         _onCommand = onCommand;
     }
@@ -42,78 +47,94 @@ public class HaWebSocketClient : IDisposable
         {
             try
             {
-                _ws = new System.Net.WebSockets.ClientWebSocket();
+                _ws = new ClientWebSocket();
+
+                // Ignore SSL errors for self-signed certs
+                _ws.Options.RemoteCertificateValidationCallback = (sender, cert, chain, errors) => true;
+
                 await _ws.ConnectAsync(new Uri(wsUrl), _cts.Token);
 
-                // Step 1: Receive auth_required message
-                var buffer = new byte[8192];
-                var result = await _ws.ReceiveAsync(new ArraySegment<byte>(buffer), _cts.Token);
-                var msg = Encoding.UTF8.GetString(buffer, 0, result.Count);
-
-                if (!msg.Contains("auth_required"))
+                // Step 1: Receive auth_required
+                var msg = await ReceiveMessage();
+                if (msg == null || !msg.Contains("auth_required"))
                     throw new Exception("Expected auth_required from HA");
 
                 // Step 2: Send auth
-                var authMsg = JsonSerializer.Serialize(new { type = "auth", access_token = _token });
-                var authBytes = Encoding.UTF8.GetBytes(authMsg);
-                await _ws.SendAsync(new ArraySegment<byte>(authBytes), System.Net.WebSockets.WebSocketMessageType.Text, true, _cts.Token);
+                await SendMessage(new { type = "auth", access_token = _token });
 
                 // Step 3: Receive auth_ok
-                result = await _ws.ReceiveAsync(new ArraySegment<byte>(buffer), _cts.Token);
-                msg = Encoding.UTF8.GetString(buffer, 0, result.Count);
-                if (!msg.Contains("auth_ok"))
-                    throw new Exception("Auth failed");
+                msg = await ReceiveMessage();
+                if (msg == null || !msg.Contains("auth_ok"))
+                    throw new Exception("Auth failed: " + (msg ?? "no response"));
 
-                // Step 4: Subscribe to mobile_app push notification channel
-                var subMsg = JsonSerializer.Serialize(new
+                _connected = true;
+
+                // Step 4: Subscribe to push notification channel
+                await SendMessage(new
                 {
                     id = _msgId++,
                     type = "mobile_app/push_notification_channel",
-                    webhook_id = "" // Will be set externally
+                    webhook_id = _webhookId,
+                    support_confirm = false
                 });
 
-                // Listen for messages
-                await ListenLoop(buffer);
+                // Step 5: Listen for notifications
+                await ListenLoop();
             }
-            catch (System.Net.WebSockets.WebSocketException)
+            catch (OperationCanceledException) { break; }
+            catch (Exception)
             {
-                // Reconnect after delay
+                _connected = false;
             }
-            catch (OperationCanceledException)
-            {
-                break;
-            }
-            catch { }
 
             if (!_cts.Token.IsCancellationRequested)
-                await Task.Delay(5000, _cts.Token); // Wait 5s before reconnect
+            {
+                try { await Task.Delay(5000, _cts.Token); } catch { break; }
+            }
         }
+
+        _connected = false;
     }
 
-    private async Task ListenLoop(byte[] buffer)
+    private async Task<string?> ReceiveMessage()
     {
-        while (_ws?.State == System.Net.WebSockets.WebSocketState.Open && !_cts!.Token.IsCancellationRequested)
+        if (_ws?.State != WebSocketState.Open) return null;
+
+        var buffer = new byte[16384];
+        var sb = new StringBuilder();
+        WebSocketReceiveResult result;
+
+        do
+        {
+            result = await _ws.ReceiveAsync(new ArraySegment<byte>(buffer), _cts?.Token ?? CancellationToken.None);
+            sb.Append(Encoding.UTF8.GetString(buffer, 0, result.Count));
+        }
+        while (!result.EndOfMessage);
+
+        return sb.ToString();
+    }
+
+    private async Task SendMessage(object data)
+    {
+        if (_ws?.State != WebSocketState.Open) return;
+        var json = JsonSerializer.Serialize(data);
+        var bytes = Encoding.UTF8.GetBytes(json);
+        await _ws.SendAsync(new ArraySegment<byte>(bytes), WebSocketMessageType.Text, true, _cts?.Token ?? CancellationToken.None);
+    }
+
+    private async Task ListenLoop()
+    {
+        while (_ws?.State == WebSocketState.Open && !_cts!.Token.IsCancellationRequested)
         {
             try
             {
-                var result = await _ws.ReceiveAsync(new ArraySegment<byte>(buffer), _cts.Token);
-                if (result.MessageType == System.Net.WebSockets.WebSocketMessageType.Close)
-                    break;
+                var msg = await ReceiveMessage();
+                if (msg == null) break;
 
-                var msg = Encoding.UTF8.GetString(buffer, 0, result.Count);
-
-                // Handle fragmented messages
-                while (!result.EndOfMessage)
-                {
-                    result = await _ws.ReceiveAsync(new ArraySegment<byte>(buffer), _cts.Token);
-                    if (result.MessageType == System.Net.WebSockets.WebSocketMessageType.Close)
-                        return;
-                }
-
-                // Process notification
                 ProcessMessage(msg);
             }
             catch (OperationCanceledException) { break; }
+            catch (WebSocketException) { break; }
             catch { break; }
         }
     }
@@ -125,16 +146,46 @@ public class HaWebSocketClient : IDisposable
             var doc = JsonDocument.Parse(msg);
             var root = doc.RootElement;
 
-            // HA sends push notifications via websocket events
-            // The event type is "mobile_app_push_notification"
+            // HA sends push notifications via WebSocket events
             if (root.TryGetProperty("type", out var typeEl) && typeEl.GetString() == "event")
             {
                 if (root.TryGetProperty("event", out var eventEl))
                 {
-                    if (eventEl.TryGetProperty("data", out var dataEl))
+                    // Push notification event
+                    string title = "HA DeskLink";
+                    string message = "";
+                    string? command = null;
+
+                    if (eventEl.TryGetProperty("title", out var t))
+                        title = t.GetString() ?? title;
+                    if (eventEl.TryGetProperty("message", out var m))
+                        message = m.GetString() ?? "";
+                    if (eventEl.TryGetProperty("data", out var data))
                     {
-                        var json = dataEl.GetRawText();
-                        NotificationHandler.TryHandleNotification(json, _trayIcon);
+                        if (data.TryGetProperty("command", out var c))
+                            command = c.GetString();
+                        if (data.TryGetProperty("title", out var dt))
+                            title = dt.GetString() ?? title;
+                        if (data.TryGetProperty("message", out var dm))
+                            message = dm.GetString() ?? message;
+                    }
+
+                    // Execute command if present
+                    if (!string.IsNullOrEmpty(command))
+                    {
+                        try { _onCommand?.Invoke(command!); }
+                        catch { }
+                    }
+
+                    // Show notification if there's a message
+                    if (!string.IsNullOrEmpty(message))
+                    {
+                        NotificationHandler.ShowNotification(title, message, _trayIcon);
+                    }
+                    else if (!string.IsNullOrEmpty(command))
+                    {
+                        // Command without message - still show what happened
+                        NotificationHandler.ShowNotification("HA DeskLink", $"Befehl ausgeführt: {command}", _trayIcon);
                     }
                 }
             }
@@ -142,24 +193,15 @@ public class HaWebSocketClient : IDisposable
         catch { }
     }
 
-    public async Task SubscribeToNotificationsAsync(string webhookId)
-    {
-        if (_ws?.State != System.Net.WebSockets.WebSocketState.Open) return;
-
-        var subMsg = JsonSerializer.Serialize(new
-        {
-            id = _msgId++,
-            type = "mobile_app/push_notification_channel",
-            webhook_id = webhookId
-        });
-        var bytes = Encoding.UTF8.GetBytes(subMsg);
-        await _ws.SendAsync(new ArraySegment<byte>(bytes), System.Net.WebSockets.WebSocketMessageType.Text, true, _cts?.Token ?? CancellationToken.None);
-    }
-
     public void Stop()
     {
         _cts?.Cancel();
-        try { _ws?.CloseAsync(System.Net.WebSockets.WebSocketCloseStatus.NormalClosure, "Stopping", CancellationToken.None); } catch { }
+        try
+        {
+            if (_ws?.State == WebSocketState.Open)
+                _ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "Stopping", CancellationToken.None).Wait(2000);
+        }
+        catch { }
     }
 
     public void Dispose()

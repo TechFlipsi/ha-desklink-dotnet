@@ -48,7 +48,8 @@ public class DeskLinkApp
         SetupTray();
 
         // Start WebSocket connection for push notifications (works for all users, no IP needed)
-        var wsClient = new HaWebSocketClient(_config.HaUrl, _config.HaToken, _trayIcon,
+        var webhookId = _api.GetWebhookId();
+        var wsClient = new HaWebSocketClient(_config.HaUrl, _config.HaToken, webhookId, _trayIcon,
             cmd => CommandHandler.Execute(cmd));
 
         try
@@ -83,14 +84,7 @@ public class DeskLinkApp
         // Start WebSocket connection in background
         Task.Run(async () =>
         {
-            try
-            {
-                await wsClient.ConnectAsync();
-                // After connected and auth, subscribe with our webhook_id
-                var webhookId = _api.GetWebhookId();
-                if (!string.IsNullOrEmpty(webhookId))
-                    await wsClient.SubscribeToNotificationsAsync(webhookId);
-            }
+            try { await wsClient.ConnectAsync(); }
             catch { }
         });
 
