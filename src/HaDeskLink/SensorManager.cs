@@ -27,6 +27,7 @@ public class SensorManager : IDisposable
             IsMemoryEnabled = true,
             IsStorageEnabled = true,
             IsBatteryEnabled = true,
+            IsControllerEnabled = true, // SuperIO for motherboard fans
         };
         try { _computer.Open(); }
         catch { /* LibreHardwareMonitor native DLLs may fail in single-file mode */ }
@@ -113,28 +114,45 @@ public class SensorManager : IDisposable
     private List<SensorData> GetGpuSensors()
     {
         var result = new List<SensorData>();
-        var gpu = _computer.Hardware.FirstOrDefault(h =>
-            h.HardwareType == HardwareType.GpuNvidia ||
-            h.HardwareType == HardwareType.GpuAmd ||
-            h.HardwareType == HardwareType.GpuIntel);
-
-        if (gpu == null) return result;
-
-        foreach (var sensor in gpu.Sensors)
+        // Search all hardware for GPU sensors (handles Nvidia, AMD, Intel)
+        foreach (var hw in _computer.Hardware)
         {
-            if (sensor.Value == null) continue;
+            if (hw.HardwareType != HardwareType.GpuNvidia &&
+                hw.HardwareType != HardwareType.GpuAmd &&
+                hw.HardwareType != HardwareType.GpuIntel) continue;
 
-            if (sensor.SensorType == SensorType.Load && sensor.Name.Contains("Core"))
+            hw.Update();
+            foreach (var sensor in hw.Sensors)
             {
-                result.Add(new SensorData("gpu_load", "GPU Load",
-                    Math.Round(sensor.Value.Value, 1), "%",
-                    icon: "mdi:gpu", stateClass: "measurement"));
-            }
-            else if (sensor.SensorType == SensorType.Temperature)
-            {
-                result.Add(new SensorData("gpu_temperature", "GPU Temperature",
-                    Math.Round(sensor.Value.Value, 1), "\u00b0C",
-                    icon: "mdi:gpu", stateClass: "measurement"));
+                if (sensor.Value == null) continue;
+
+                if (sensor.SensorType == SensorType.Load && sensor.Name.Contains("Core"))
+                {
+                    if (!result.Any(s => s.UniqueId == "gpu_load"))
+                    {
+                        result.Add(new SensorData("gpu_load", "GPU Load",
+                            Math.Round(sensor.Value.Value, 1), "%",
+                            icon: "mdi:gpu", stateClass: "measurement"));
+                    }
+                }
+                else if (sensor.SensorType == SensorType.Temperature)
+                {
+                    if (!result.Any(s => s.UniqueId == "gpu_temperature"))
+                    {
+                        result.Add(new SensorData("gpu_temperature", "GPU Temperature",
+                            Math.Round(sensor.Value.Value, 1), "\u00b0C",
+                            icon: "mdi:gpu", stateClass: "measurement"));
+                    }
+                }
+                else if (sensor.SensorType == SensorType.Fan)
+                {
+                    if (!result.Any(s => s.UniqueId == "gpu_fan_speed"))
+                    {
+                        var rpm = Math.Round(sensor.Value.Value, 0);
+                        result.Add(new SensorData("gpu_fan_speed", "GPU Fan Speed", rpm, "RPM",
+                            icon: "mdi:fan", stateClass: "measurement"));
+                    }
+                }
             }
         }
         return result;
@@ -430,24 +448,7 @@ public class SensorManager : IDisposable
             }
         }
 
-        // GPU fan
-        var gpu = _computer.Hardware.FirstOrDefault(h => h.HardwareType == HardwareType.GpuNvidia || h.HardwareType == HardwareType.GpuAmd || h.HardwareType == HardwareType.GpuIntel);
-        if (gpu != null)
-        {
-            foreach (var sensor in gpu.Sensors)
-            {
-                if (sensor.Value == null) continue;
-                if (sensor.SensorType == SensorType.Fan)
-                {
-                    var rpm = Math.Round(sensor.Value.Value, 0);
-                    result.Add(new SensorData("gpu_fan_speed", "GPU Fan Speed", rpm, "RPM",
-                        icon: "mdi:fan", stateClass: "measurement"));
-                    break;
-                }
-            }
-        }
-
-        // SuperIO / Motherboard fans
+        // SuperIO / Motherboard fans (GPU fan is already handled by GetGpuSensors)
         var superIO = _computer.Hardware.FirstOrDefault(h => h.HardwareType == HardwareType.SuperIO);
         if (superIO != null)
         {
