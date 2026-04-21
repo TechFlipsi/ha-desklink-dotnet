@@ -13,6 +13,7 @@ public class SettingsWindow : Form
 {
     private readonly Config _config;
     private readonly Action _onReconnect;
+    private readonly HaApiClient? _api;
     private TextBox _urlBox = null!;
     private TextBox _tokenBox = null!;
     private CheckBox _sslCheck = null!;
@@ -21,10 +22,11 @@ public class SettingsWindow : Form
     private ComboBox _updateChannelBox = null!;
     private Label _statusLabel = null!;
 
-    public SettingsWindow(Config config, Action onReconnect)
+    public SettingsWindow(Config config, Action onReconnect, HaApiClient? api = null)
     {
         _config = config;
         _onReconnect = onReconnect;
+        _api = api;
         Text = "HA DeskLink - Einstellungen";
         Size = new System.Drawing.Size(520, 550);
         MinimumSize = new System.Drawing.Size(480, 420);
@@ -98,6 +100,9 @@ public class SettingsWindow : Form
         var reconnectBtn = new Button { Text = "Neu verbinden", Size = new System.Drawing.Size(120, 35) };
         reconnectBtn.Click += OnReconnectClicked;
         btnPanel.Controls.Add(reconnectBtn);
+        var resetDeviceBtn = new Button { Text = "Neue Ger\u00e4te-ID", Size = new System.Drawing.Size(120, 35) };
+        resetDeviceBtn.Click += OnResetDeviceId;
+        btnPanel.Controls.Add(resetDeviceBtn);
         panel.Controls.Add(btnPanel, 0, 8);
         panel.SetColumnSpan(btnPanel, 2);
 
@@ -138,16 +143,29 @@ public class SettingsWindow : Form
         _statusLabel.Text = "Neu verbunden!";
     }
 
+    private void OnResetDeviceId(object? sender, EventArgs e)
+    {
+        var result = MessageBox.Show(
+            "Neue Ger\u00e4te-ID erstellen?\n\nDas alte Ger\u00e4t wird in Home Assistant zur\u00fcckgelassen. " +
+            "Beim n\u00e4chsten Neustart wird ein neues Ger\u00e4t angelegt.",
+            "Ger\u00e4te-ID zur\u00fccksetzen", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+        if (result == DialogResult.Yes)
+        {
+            _api?.ResetDeviceId();
+            _statusLabel.Text = "Neue ID erstellt – App bitte neustarten!";
+        }
+    }
+
     private static SettingsWindow? _instance;
 
-    public static void Open(Config config, Action onReconnect)
+    public static void Open(Config config, Action onReconnect, HaApiClient? api = null)
     {
         if (_instance != null && !_instance.IsDisposed)
         {
             _instance.Activate();
             return;
         }
-        _instance = new SettingsWindow(config, onReconnect);
+        _instance = new SettingsWindow(config, onReconnect, api);
         _instance.Show();
     }
 }

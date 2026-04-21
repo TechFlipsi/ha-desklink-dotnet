@@ -21,6 +21,7 @@ public class HaApiClient
     private string _deviceId = "";
     private string _token = "";
     private readonly string _configDir;
+    private bool _isReconnect;
 
     private string WebhookUrl => string.IsNullOrEmpty(_cloudUrl)
         ? $"{_haUrl}/api/webhook/{_webhookId}"
@@ -48,6 +49,10 @@ public class HaApiClient
         _haUrl = haUrl.TrimEnd('/');
         SetToken(token);
 
+        // Reuse existing device_id if we have one (prevents duplicate devices in HA)
+        var existingDeviceId = LoadDeviceId();
+        var deviceId = !string.IsNullOrEmpty(existingDeviceId) ? existingDeviceId : Guid.NewGuid().ToString();
+
         var is64 = Environment.Is64BitOperatingSystem;
         var payload = new Dictionary<string, object>
         {
@@ -55,7 +60,7 @@ public class HaApiClient
             ["app_name"] = "HA DeskLink",
             ["app_version"] = GetVersion(),
             ["device_name"] = Environment.MachineName,
-            ["device_id"] = Guid.NewGuid().ToString(),
+            ["device_id"] = deviceId,
             ["os_name"] = "Windows",
             ["os_version"] = Environment.OSVersion.VersionString,
             ["manufacturer"] = "Custom",
@@ -258,6 +263,41 @@ public class HaApiClient
         var json = JsonSerializer.Serialize(data, new JsonSerializerOptions { WriteIndented = true });
         File.WriteAllText(Path.Combine(_configDir, "registration.json"), json);
         File.WriteAllText(Path.Combine(_configDir, "token.txt"), token);
+    }
+
+    private string? LoadDeviceId()
+    {
+        try
+        {
+            // Check for reset device_id first
+            var resetPath = Path.Combine(_configDir, "device_id.txt");
+            if (File.Exists(resetPath))
+            {
+                var id = File.ReadAllText(resetPath).Trim();
+                File.Delete(resetPath); // One-time use
+                return id;
+            }
+            // Then check existing registration
+            var path = Path.Combine(_configDir, "registration.json");
+            if (File.Exists(path))
+            {
+                var data = JsonDocument.Parse(File.ReadAllText(path));
+                if (data.RootElement.TryGetProperty("device_id", out var di))
+                    return di.GetString();
+            }
+        }
+        catch { }
+        return null;
+    }
+
+    public void ResetDeviceId()
+    {
+        try
+        {
+            Directory.CreateDirectory(_configDir);
+            File.WriteAllText(Path.Combine(_configDir, "device_id.txt"), Guid.NewGuid().ToString());
+        }
+        catch { }
     }
 
     private static string GetVersion()

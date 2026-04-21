@@ -15,6 +15,7 @@ public class DeskLinkApp
     private readonly HaApiClient _api;
     private SensorManager? _sensors;
     private WebhookServer? _webhookServer;
+    private readonly Dictionary<string, string> _lastSensorStates = new();
     private readonly CancellationTokenSource _cts = new();
     private NotifyIcon? _trayIcon;
 
@@ -121,7 +122,20 @@ public class DeskLinkApp
         {
             try
             {
-                await _api.UpdateSensorStatesAsync(_sensors!.CollectAll());
+                var allSensors = _sensors!.CollectAll();
+                // Only send sensors that changed since last update
+                var changed = new List<SensorData>();
+                foreach (var s in allSensors)
+                {
+                    var key = s.UniqueId;
+                    if (!_lastSensorStates.TryGetValue(key, out var lastState) || lastState != s.State)
+                    {
+                        changed.Add(s);
+                        _lastSensorStates[key] = s.State;
+                    }
+                }
+                if (changed.Count > 0)
+                    await _api.UpdateSensorStatesAsync(changed);
             }
             catch { }
             await Task.Delay(_config.SensorInterval * 1000, ct);
@@ -192,7 +206,7 @@ public class DeskLinkApp
         });
 
         menu.Items.Add("Einstellungen", null, (s, e) =>
-            SettingsWindow.Open(_config, Reconnect));
+            SettingsWindow.Open(_config, Reconnect, _api));
 
         menu.Items.Add("Log \u00f6ffnen", null, (s, e) =>
         {
