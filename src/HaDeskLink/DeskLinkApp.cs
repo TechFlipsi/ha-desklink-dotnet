@@ -242,6 +242,11 @@ public class DeskLinkApp
                 MessageBox.Show("Kein Fehler-Log vorhanden.", "Log", MessageBoxButtons.OK, MessageBoxIcon.Information);
         });
 
+        menu.Items.Add("Discord", null, (s, e) =>
+        {
+            Process.Start(new ProcessStartInfo("https://discord.gg/HnCZY54U7") { UseShellExecute = true });
+        });
+
         menu.Items.Add("-");
         menu.Items.Add("Beenden", null, (s, e) => Application.Exit());
 
