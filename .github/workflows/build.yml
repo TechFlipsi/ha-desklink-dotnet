@@ -101,3 +101,11 @@ jobs:
             - Auto-Update von GitHub
             - Nativer Windows Tray
           generate_release_notes: false
+
+      - name: Discord Release Notification
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        run: |
+          VERSION="${{ steps.version.outputs.VERSION }}"
+          curl -s -X POST -H "Content-Type: application/json" "$DISCORD_WEBHOOK" \
+            -d "{\"username\":\"HA DeskLink Release\",\"embeds\":[{\"title\":\"🪟 HA DeskLink Windows v${VERSION}\",\"color\":5763719,\"fields\":[{\"name\":\"📦 Download\",\"value\":\"[GitHub Release](https://github.com/TechFlipsi/ha-desklink-dotnet/releases/latest)\"}]}]}"
