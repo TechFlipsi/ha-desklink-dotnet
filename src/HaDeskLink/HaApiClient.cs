@@ -193,63 +193,62 @@ public class HaApiClient
             using var ghClient = new HttpClient();
             ghClient.DefaultRequestHeaders.Add("User-Agent", "HA-DeskLink");
 
-            if (includePrerelease)
+            var resp = await ghClient.GetAsync("https://api.github.com/repos/TechFlipsi/ha-desklink-dotnet/releases");
+            if (!resp.IsSuccessStatusCode) return null;
+            var data = JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
+            var currentVersion = GetVersion();
+
+            // Find the highest version that is newer than current
+            string? bestTag = null;
+            Version? bestVersion = null;
+            string? bestUrl = null;
+            var currentVer = ParseVersion(currentVersion);
+
+            foreach (var release in data.RootElement.EnumerateArray())
             {
-                // Get all releases including pre-releases, find the newest
-                var resp = await ghClient.GetAsync("https://api.github.com/repos/FKirchweger/ha-desklink-dotnet/releases");
-                if (!resp.IsSuccessStatusCode) return null;
-                var data = JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
-                var currentVersion = GetVersion();
+                // Skip pre-releases for stable channel
+                if (!includePrerelease && release.TryGetProperty("prerelease", out var pre) && pre.GetBoolean())
+                    continue;
 
-                foreach (var release in data.RootElement.EnumerateArray())
+                var tagName = release.GetProperty("tag_name").GetString() ?? "";
+                if (tagName.StartsWith("v")) tagName = tagName[1..];
+                var releaseVer = ParseVersion(tagName);
+                if (releaseVer == null) continue;
+
+                // Only consider versions NEWER than current (no downgrades!)
+                if (releaseVer.CompareTo(currentVer) <= 0) continue;
+
+                if (bestVersion == null || releaseVer.CompareTo(bestVersion) > 0)
                 {
-                    var tagName = release.GetProperty("tag_name").GetString() ?? "";
-                    if (tagName.StartsWith("v")) tagName = tagName[1..];
-
-                    if (tagName != currentVersion && !string.IsNullOrEmpty(tagName))
+                    bestVersion = releaseVer;
+                    bestTag = tagName;
+                    foreach (var asset in release.GetProperty("assets").EnumerateArray())
                     {
-                        foreach (var asset in release.GetProperty("assets").EnumerateArray())
-                        {
-                            var name = asset.GetProperty("name").GetString() ?? "";
-                            if (name.EndsWith(".exe"))
-                                return asset.GetProperty("browser_download_url").GetString();
-                        }
+                        var name = asset.GetProperty("name").GetString() ?? "";
+                        if (name.EndsWith(".exe"))
+                            bestUrl = asset.GetProperty("browser_download_url").GetString();
                     }
                 }
             }
-            else
-            {
-                // Stable only - use /latest which skips pre-releases
-                // Since all current v2.x are pre-release, we also check all releases
-                // and find the latest non-prerelease
-                var resp = await ghClient.GetAsync("https://api.github.com/repos/FKirchweger/ha-desklink-dotnet/releases");
-                if (!resp.IsSuccessStatusCode) return null;
-                var data = JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
-                var currentVersion = GetVersion();
 
-                foreach (var release in data.RootElement.EnumerateArray())
-                {
-                    // Skip pre-releases for stable channel
-                    if (release.TryGetProperty("prerelease", out var pre) && pre.GetBoolean())
-                        continue;
-
-                    var tagName = release.GetProperty("tag_name").GetString() ?? "";
-                    if (tagName.StartsWith("v")) tagName = tagName[1..];
-
-                    if (tagName != currentVersion && !string.IsNullOrEmpty(tagName))
-                    {
-                        foreach (var asset in release.GetProperty("assets").EnumerateArray())
-                        {
-                            var name = asset.GetProperty("name").GetString() ?? "";
-                            if (name.EndsWith(".exe"))
-                                return asset.GetProperty("browser_download_url").GetString();
-                        }
-                    }
-                }
-            }
+            return bestUrl;
         }
         catch { }
         return null;
+    }
+
+    private static Version ParseVersion(string version)
+    {
+        // Handle versions like "2.0.7" → Version(2, 0, 7)
+        var parts = version.Split('.');
+        try
+        {
+            var major = parts.Length > 0 ? int.Parse(parts[0]) : 0;
+            var minor = parts.Length > 1 ? int.Parse(parts[1]) : 0;
+            var build = parts.Length > 2 ? int.Parse(parts[2]) : 0;
+            return new Version(major, minor, build);
+        }
+        catch { return new Version(0, 0, 0); }
     }
 
     private void SaveRegistration(string haUrl, string token)
