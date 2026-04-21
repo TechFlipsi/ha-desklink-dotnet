@@ -268,6 +268,6 @@ public class HaApiClient
             if (File.Exists(vfile)) return File.ReadAllText(vfile).Trim();
         }
         catch { }
-        return "2.0.7";
+        return "2.0.8";
     }
 }

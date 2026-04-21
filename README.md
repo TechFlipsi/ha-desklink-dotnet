@@ -160,6 +160,7 @@ HA DeskLink erstellt automatisch Sensoren in HA:
 | `sensor.ha_desklink_cpu_clock` | CPU-Taktrate in MHz |
 | `sensor.ha_desklink_network_upload` | Upload-Geschwindigkeit in KB/s |
 | `sensor.ha_desklink_network_download` | Download-Geschwindigkeit in KB/s |
+| `sensor.ha_desklink_fan_*` | Lüfter-Drehzahlen in RPM (CPU, GPU, Mainboard) |
 
 > 💡 Weitere Laufwerke (D:, E: etc.) werden automatisch erkannt. GPU-Sensoren erscheinen nur wenn eine GPU vorhanden ist.
 

@@ -62,8 +62,9 @@ public class SensorManager : IDisposable
         var wifiSignal = GetWifiSignal();
         if (wifiSignal != null) sensors.Add(wifiSignal);
 
-        // CPU clock speed from LibreHardwareMonitor
+        // CPU clock speed and fan speeds from LibreHardwareMonitor
         sensors.AddRange(GetCpuClockSensors());
+        sensors.AddRange(GetFanSensors());
 
         // Network throughput
         sensors.AddRange(GetNetworkSensors());
@@ -391,6 +392,69 @@ public class SensorManager : IDisposable
         catch { }
         return new SensorData("active_window", "Active Window", "unknown",
             icon: "mdi:window-maximize");
+    }
+
+    private List<SensorData> GetFanSensors()
+    {
+        var result = new List<SensorData>();
+
+        // CPU fan
+        var cpu = _computer.Hardware.FirstOrDefault(h => h.HardwareType == HardwareType.Cpu);
+        if (cpu != null)
+        {
+            foreach (var sensor in cpu.Sensors)
+            {
+                if (sensor.Value == null) continue;
+                if (sensor.SensorType == SensorType.Fan)
+                {
+                    var rpm = Math.Round(sensor.Value.Value, 0);
+                    var name = sensor.Name.Contains("CPU") || sensor.Name.Contains("Fan")
+                        ? "CPU Fan Speed"
+                        : $"Fan ({sensor.Name})";
+                    var uid = sensor.Name.ToLowerInvariant().Replace(" ", "_").Replace("#", "");
+                    result.Add(new SensorData($"fan_{uid}", name, rpm, "RPM",
+                        icon: "mdi:fan", stateClass: "measurement"));
+                    break; // First fan only
+                }
+            }
+        }
+
+        // GPU fan
+        var gpu = _computer.Hardware.FirstOrDefault(h => h.HardwareType == HardwareType.GpuNvidia || h.HardwareType == HardwareType.GpuAti || h.HardwareType == HardwareType.GpuIntel);
+        if (gpu != null)
+        {
+            foreach (var sensor in gpu.Sensors)
+            {
+                if (sensor.Value == null) continue;
+                if (sensor.SensorType == SensorType.Fan)
+                {
+                    var rpm = Math.Round(sensor.Value.Value, 0);
+                    result.Add(new SensorData("gpu_fan_speed", "GPU Fan Speed", rpm, "RPM",
+                        icon: "mdi:fan", stateClass: "measurement"));
+                    break;
+                }
+            }
+        }
+
+        // SuperIO / Motherboard fans
+        var superIO = _computer.Hardware.FirstOrDefault(h => h.HardwareType == HardwareType.SuperIO);
+        if (superIO != null)
+        {
+            foreach (var sensor in superIO.Sensors)
+            {
+                if (sensor.Value == null) continue;
+                if (sensor.SensorType == SensorType.Fan)
+                {
+                    var rpm = Math.Round(sensor.Value.Value, 0);
+                    var label = sensor.Name.Trim();
+                    var uid = label.ToLowerInvariant().Replace(" ", "_").Replace("#", "");
+                    result.Add(new SensorData($"fan_{uid}", $"Fan: {label}", rpm, "RPM",
+                        icon: "mdi:fan", stateClass: "measurement"));
+                }
+            }
+        }
+
+        return result;
     }
 
     private List<SensorData> GetCpuClockSensors()
