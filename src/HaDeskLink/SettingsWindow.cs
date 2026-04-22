@@ -169,7 +169,7 @@ public class SettingsWindow : Form
             AllowUserToDeleteRows = true,
             ColumnCount = 2,
             AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
-            MinimumHeight = 120,
+            Height = 150,
             MaximumSize = new Size(0, 200),
         };
         _qaGrid.Columns[0].HeaderText = Localization.Get("settings_qa_entity");
