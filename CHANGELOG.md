@@ -1,6 +1,9 @@
 # Changelog
 
 
+## [v3.0.12] - 2026-04-22
+- 🎨 **Redesign:** Einstellungen komplett neu gestaltet – volle Breite, scrollbar, responsive Layout
+
 ## [v3.0.11] - 2026-04-22
 - ✨ **Neu:** Konfigurierbarer Hotkey für Quick Actions (Modifier + Taste wählbar)
 - 🎨 **Redesign:** Einstellungen neu gestaltet mit GroupBoxes und farbigen Buttons
