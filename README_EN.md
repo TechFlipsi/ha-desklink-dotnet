@@ -4,7 +4,6 @@
 
 Written in **C# / .NET 8** with LibreHardwareMonitorLib for real hardware sensors.
 
-> 🇩🇪 [Deutsche Version (Original)](README_DE.md)
 
 ## Features
 - 🌡️ **CPU & GPU Temperature** – real values thanks to LibreHardwareMonitorLib
