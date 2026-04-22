@@ -27,7 +27,7 @@ public class DeskLinkApp
     public static DeskLinkApp? Instance { get; private set; }
     private readonly Config _config;
     private readonly HaApiClient _api;
-    private SensorManager? _sensors;
+    internal SensorManager? _sensors;
     private WebhookServer? _webhookServer;
     private readonly Dictionary<string, object> _lastSensorStates = new();
     private readonly CancellationTokenSource _cts = new();
@@ -401,5 +401,25 @@ public class DeskLinkApp
     {
         try { await _api.UploadScreenshotAsync(filePath); }
         catch { }
+    }
+
+    /// <summary>
+    /// Re-register all sensors with Home Assistant.
+    /// Call from Settings to fix missing sensors after an update.
+    /// </summary>
+    public static void ReRegisterSensors()
+    {
+        var app = Instance;
+        if (app != null && app._sensors != null)
+        {
+            var sensors = app._sensors.CollectAll();
+            foreach (var sensor in sensors)
+            {
+                try { app._api.RegisterSensorAsync(sensor).Wait(); }
+                catch { }
+            }
+            try { app._api.UpdateSensorStatesAsync(sensors).Wait(); }
+            catch { }
+        }
     }
 }

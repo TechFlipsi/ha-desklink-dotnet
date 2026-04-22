@@ -63,5 +63,19 @@
   "screenshot_saved": "Screenshot saved",
   "webcam_active": "Webcam Active",
   "notification_action_executed": "Action executed",
-  "ha_desklink_version": "HA DeskLink Version"
+  "ha_desklink_version": "HA DeskLink Version",
+  "settings_theme": "Theme:",
+  "settings_theme_system": "System",
+  "settings_theme_light": "Light",
+  "settings_theme_dark": "Dark",
+  "settings_reset_device": "Reset Device",
+  "settings_reset_device_confirm": "Reset device ID?\n\nThe old device will remain in Home Assistant. A new device will be created on next restart.",
+  "settings_reset_device_done": "New ID created - please restart!",
+  "settings_reregister_sensors": "Re-register Sensors",
+  "settings_reregister_confirm": "Re-register all sensors with Home Assistant?\n\nThis can fix missing sensors after an update.",
+  "settings_reregister_done": "Sensors re-registered!",
+  "settings_qa_entity": "Entity ID",
+  "settings_qa_name": "Name",
+  "settings_quickactions_desc": "Enter entity ID and name for Quick Action buttons.",
+  "settings_quickactions_saved": "Quick Actions saved!"
 }

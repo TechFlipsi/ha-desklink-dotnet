@@ -49,6 +49,10 @@ public class Config
     /// </summary>
     public string QuickActions { get; set; } = "[]";
     /// <summary>
+    /// UI theme: "system" (follow Windows), "light", or "dark". Default: system
+    /// </summary>
+    public string Theme { get; set; } = "system";
+    /// <summary>
     /// Encrypted HA token (DPAPI protected). When set, HaToken is cleared.
     /// If empty, HaToken is used (migration from old config).
     /// </summary>

@@ -1,6 +1,13 @@
 # Changelog
 
 
+## [v3.0.8] - 2026-04-22
+- ✨ **Neu:** Dark/Light/System-Theme in den Einstellungen
+- ✨ **Neu:** Sensoren neu registrieren Button (fehlt Sensoren nach Update)
+- ✨ **Neu:** Quick Actions direkt in den Einstellungen konfigurierbar
+- ✨ **Neu:** Gerät zurücksetzen Button
+- 🐛 **Bug Fix:** Brightness-Befehle nutzen jetzt Virtual Keys statt WMI
+
 ## [v3.0.7] - 2026-04-22
 - 🐛 **Bug Fix:** brightness_up/down verwenden jetzt Virtual Keys (wie volume) statt WMI – funktioniert auf allen Monitoren!
 

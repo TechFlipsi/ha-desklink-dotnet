@@ -63,5 +63,19 @@
   "screenshot_saved": "Screenshot gespeichert",
   "webcam_active": "Webcam Aktiv",
   "notification_action_executed": "Aktion ausgeführt",
-  "ha_desklink_version": "HA DeskLink Version"
+  "ha_desklink_version": "HA DeskLink Version",
+  "settings_theme": "Design:",
+  "settings_theme_system": "System",
+  "settings_theme_light": "Hell",
+  "settings_theme_dark": "Dunkel",
+  "settings_reset_device": "Gerät zurücksetzen",
+  "settings_reset_device_confirm": "Gerät zurücksetzen?\n\nDas alte Gerät bleibt in Home Assistant bestehen. Beim nächsten Start wird ein neues Gerät erstellt.",
+  "settings_reset_device_done": "Neue ID erstellt – bitte Neustarten!",
+  "settings_reregister_sensors": "Sensoren neu registrieren",
+  "settings_reregister_confirm": "Alle Sensoren bei Home Assistant neu registrieren?\n\nDas kann fehlende Sensoren nach einem Update reparieren.",
+  "settings_reregister_done": "Sensoren neu registriert!",
+  "settings_qa_entity": "Entity ID",
+  "settings_qa_name": "Name",
+  "settings_quickactions_desc": "Entity ID und Name für Quick Action Buttons eingeben.",
+  "settings_quickactions_saved": "Quick Actions gespeichert!"
 }
