@@ -1,6 +1,10 @@
 # Changelog
 
 
+## [v3.0.15] - 2026-04-22
+- 🐛 Fix: readonly field assignment in QuickActionHandler
+- 🐛 Fix: DataGridViewComboBoxColumn has no DropDownStyle property → set via EditingControlShowing event
+
 ## [v3.0.14] - 2026-04-22
 - ✨ **Neu:** Drei konfigurierbare Hotkeys – Quick Actions (Ctrl+Shift+H), Dashboard (Ctrl+Shift+D), Einstellungen (Ctrl+Shift+S)
 - 🐛 **Bug Fix:** Entity-Dropdown funktioniert jetzt mit ComboBox-Spalte

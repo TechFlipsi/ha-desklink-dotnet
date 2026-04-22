@@ -193,7 +193,6 @@ public class SettingsWindow : Form
         {
             HeaderText = Localization.Get("settings_qa_entity"),
             Name = "EntityID",
-            DropDownStyle = ComboBoxStyle.DropDown,
             AutoComplete = true,
             FlatStyle = FlatStyle.Standard,
             Width = 250,
@@ -205,6 +204,7 @@ public class SettingsWindow : Form
             AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill,
         };
         _qaGrid.Columns.AddRange(entityCol, nameCol);
+        _qaGrid.EditingControlShowing += OnGridEditingControlShowing;
         content.Controls.Add(_qaGrid);
 
         var qaBtnPanel = new FlowLayoutPanel { Dock = DockStyle.Top, FlowDirection = FlowDirection.LeftToRight, WrapContents = true, AutoSize = true, Padding = new Padding(0, 8, 0, 15) };
@@ -465,6 +465,14 @@ public class SettingsWindow : Form
         catch (Exception ex)
         {
             _statusLabel.Text = $"{Localization.Get("settings_entities_failed")}: {ex.Message}";
+        }
+    }
+
+    private void OnGridEditingControlShowing(object? sender, DataGridViewEditingControlShowingEventArgs e)
+    {
+        if (_qaGrid.CurrentCell.ColumnIndex == 0 && e.Control is ComboBox cb)
+        {
+            cb.DropDownStyle = ComboBoxStyle.DropDown;
         }
     }
 

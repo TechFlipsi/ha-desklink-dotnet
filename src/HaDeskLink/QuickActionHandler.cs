@@ -25,7 +25,7 @@ public class QuickActionHandler : IDisposable
     private static int _nextId = 0xC000;
 
     private readonly int _hotkeyId;
-    private readonly IntPtr _hwnd;
+    private IntPtr _hwnd;
     private readonly Action _onHotkey;
     private readonly string _modifiers;
     private readonly string _key;
