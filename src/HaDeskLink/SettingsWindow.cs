@@ -14,6 +14,7 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 using System.Windows.Forms;
 
@@ -174,14 +175,20 @@ public class SettingsWindow : Form
         };
         _qaGrid.Columns[0].HeaderText = Localization.Get("settings_qa_entity");
         _qaGrid.Columns[1].HeaderText = Localization.Get("settings_qa_name");
+        _qaGrid.EditingControlShowing += OnGridEditingControlShowing;
         panel.Controls.Add(_qaGrid, 0, 13);
         panel.SetColumnSpan(_qaGrid, 2);
 
-        // Row 14: Save Quick Actions button
+        // Row 14: Buttons row (load entities + save)
+        var qaBtnPanel = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight, AutoSize = true };
+        var loadEntitiesBtn = new Button { Text = Localization.Get("settings_load_entities"), Size = new Size(160, 35) };
+        loadEntitiesBtn.Click += OnLoadEntities;
+        qaBtnPanel.Controls.Add(loadEntitiesBtn);
         var saveQaBtn = new Button { Text = Localization.Get("settings_save_quickactions"), Size = new Size(180, 35) };
         saveQaBtn.Click += OnSaveQuickActions;
-        panel.Controls.Add(saveQaBtn, 0, 14);
-        panel.SetColumnSpan(saveQaBtn, 2);
+        qaBtnPanel.Controls.Add(saveQaBtn);
+        panel.Controls.Add(qaBtnPanel, 0, 14);
+        panel.SetColumnSpan(qaBtnPanel, 2);
 
         Controls.Add(panel);
     }
@@ -381,6 +388,46 @@ public class SettingsWindow : Form
         {
             DeskLinkApp.ReRegisterSensors();
             _statusLabel.Text = Localization.Get("settings_reregister_done");
+        }
+    }
+
+    private List<(string entityId, string friendlyName)> _entities = new();
+    private AutoCompleteStringCollection _entityAutoComplete = new();
+
+    private async void OnLoadEntities(object? sender, EventArgs e)
+    {
+        if (_api == null)
+        {
+            _statusLabel.Text = Localization.Get("settings_no_connection");
+            return;
+        }
+
+        _statusLabel.Text = Localization.Get("settings_loading_entities");
+        try
+        {
+            _entities = await _api.GetEntitiesAsync();
+            _entityAutoComplete = new AutoCompleteStringCollection();
+            _entityAutoComplete.AddRange(_entities.Select(e => e.entityId).ToArray());
+            _statusLabel.Text = $"{Localization.Get("settings_entities_loaded")} ({_entities.Count})";
+        }
+        catch (Exception ex)
+        {
+            _statusLabel.Text = $"{Localization.Get("settings_entities_failed")}: {ex.Message}";
+        }
+    }
+
+    private void OnGridEditingControlShowing(object? sender, DataGridViewEditingControlShowingEventArgs e)
+    {
+        if (_qaGrid.CurrentCell.ColumnIndex == 0 && e.Control is TextBox tb)
+        {
+            tb.AutoCompleteMode = AutoCompleteMode.SuggestAppend;
+            tb.AutoCompleteSource = AutoCompleteSource.CustomSource;
+            tb.AutoCompleteCustomSource = _entityAutoComplete;
+        }
+        else if (e.Control is TextBox tb2)
+        {
+            tb2.AutoCompleteMode = AutoCompleteMode.None;
+            tb2.AutoCompleteCustomSource = new AutoCompleteStringCollection();
         }
     }
 

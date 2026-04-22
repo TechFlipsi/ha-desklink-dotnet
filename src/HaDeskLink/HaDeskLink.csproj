@@ -7,7 +7,7 @@
     <ApplicationIcon>Assets\icon.ico</ApplicationIcon>
     <AssemblyName>HA_DeskLink</AssemblyName>
     <RootNamespace>HaDeskLink</RootNamespace>
-    <Version>3.0.8</Version>
+    <Version>3.0.9</Version>
     <Nullable>enable</Nullable>
     <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>

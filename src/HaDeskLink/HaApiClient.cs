@@ -219,6 +219,39 @@ public class HaApiClient
     }
 
     /// <summary>
+    /// Get all entity states from Home Assistant.
+    /// Returns a list of entity_id + friendly_name for Quick Actions.
+    /// </summary>
+    public async Task<List<(string, string>> GetEntitiesAsync()
+    {
+        if (string.IsNullOrEmpty(_haUrl) || string.IsNullOrEmpty(_token))
+            throw new InvalidOperationException("Not connected to HA");
+
+        var url = $"{_haUrl}/api/states";
+        var req = new HttpRequestMessage(HttpMethod.Get, url);
+        req.Headers.Add("Authorization", $"Bearer {_token}");
+        var resp = await _http.SendAsync(req);
+        resp.EnsureSuccessStatusCode();
+
+        var json = await resp.Content.ReadAsStringAsync();
+        var entities = new List<(string, string)>();
+        using var doc = JsonDocument.Parse(json);
+        foreach (var item in doc.RootElement.EnumerateArray())
+        {
+            var entityId = item.TryGetProperty("entity_id", out var eid) ? eid.GetString() ?? "" : "";
+            var friendlyName = "";
+            if (item.TryGetProperty("attributes", out var attrs))
+            {
+                if (attrs.TryGetProperty("friendly_name", out var fn))
+                    friendlyName = fn.GetString() ?? "";
+            }
+            if (!string.IsNullOrEmpty(entityId))
+                entities.Add((entityId, friendlyName));
+        }
+        return entities;
+    }
+
+    /// <summary>
     /// Upload a screenshot as a HA event with base64 image data.
     /// Event type: ha_desklink_screenshot
     /// </summary>

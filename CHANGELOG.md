@@ -1,6 +1,9 @@
 # Changelog
 
 
+## [v3.0.9] - 2026-04-22
+- ✨ **Neu:** Entity-Suche im Quick Actions Editor – Entities direkt aus HA laden und per AutoComplete auswählen
+
 ## [v3.0.8] - 2026-04-22
 - ✨ **Neu:** Dark/Light/System-Theme in den Einstellungen
 - ✨ **Neu:** Sensoren neu registrieren Button (fehlt Sensoren nach Update)

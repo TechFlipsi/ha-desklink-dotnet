@@ -77,5 +77,10 @@
   "settings_qa_entity": "Entity ID",
   "settings_qa_name": "Name",
   "settings_quickactions_desc": "Enter entity ID and name for Quick Action buttons.",
-  "settings_quickactions_saved": "Quick Actions saved!"
+  "settings_quickactions_saved": "Quick Actions saved!",
+  "settings_load_entities": "Load Entities",
+  "settings_loading_entities": "Loading entities...",
+  "settings_entities_loaded": "Entities loaded",
+  "settings_entities_failed": "Failed to load",
+  "settings_no_connection": "No HA connection"
 }
