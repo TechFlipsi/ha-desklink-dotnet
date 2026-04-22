@@ -182,6 +182,8 @@ Befehle werden über **Benachrichtigungen** gesendet – wie bei der Handy-App.
 | `brightness_down` | ❌ | ❌ | ✅ | Helligkeit -10% |
 | `brightness:N` | ❌ | ❌ | ✅ | Helligkeit auf N% |
 
+> ⚠️ Helligkeits-Befehle funktionieren in der Regel **nur auf Laptops** mit integriertem Display. An Desktop-PCs mit externen Monitoren werden die Befehle ignoriert.
+
 **Beispiel:**
 ```yaml
 service: notify.mobile_app_ha_desklink
@@ -547,6 +549,8 @@ Commands are sent via **notifications** – same as the mobile app.
 | `brightness_up` | ❌ | ❌ | ✅ | Brightness +10% |
 | `brightness_down` | ❌ | ❌ | ✅ | Brightness -10% |
 | `brightness:N` | ❌ | ❌ | ✅ | Set brightness to N% |
+
+> ⚠️ Brightness commands generally **only work on laptops** with built-in displays. On desktop PCs with external monitors, the commands are ignored.
 
 **Example:**
 ```yaml

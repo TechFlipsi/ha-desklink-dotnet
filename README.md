@@ -56,9 +56,9 @@ HA DeskLink empfängt Befehle über **Benachrichtigungen** – genau wie die Han
 | Lautstärke stumm | `mute` | Schaltet den Ton stumm |
 | Lautstärke lauter | `volume_up` | Erhöht die Lautstärke um 10% |
 | Lautstärke leiser | `volume_down` | Verringert die Lautstärke um 10% |
-| Helligkeit rauf | `brightness_up` | Erhöht die Bildschirmhelligkeit um 10% |
-| Helligkeit runter | `brightness_down` | Verringert die Bildschirmhelligkeit um 10% |
-| Helligkeit setzen | `brightness:50` | Setzt Helligkeit auf bestimmten Wert (0-100) |
+| Helligkeit rauf | `brightness_up` | Erhöht die Bildschirmhelligkeit um 10% (⚠️ nur Laptops/int. Monitore) |
+| Helligkeit runter | `brightness_down` | Verringert die Bildschirmhelligkeit um 10% (⚠️ nur Laptops/int. Monitore) |
+| Helligkeit setzen | `brightness:50` | Setzt Helligkeit auf bestimmten Wert (0-100, ⚠️ nur Laptops/int. Monitore) |
 | Monitor an | `monitor_on` | Schaltet den Monitor an (wenn aus) |
 | Monitor aus | `monitor_off` | Schaltet den Monitor aus |
 | Bildschirmfoto | `screenshot` | Macht einen Screenshot und lädt ihn zu HA hoch |
@@ -67,6 +67,8 @@ HA DeskLink empfängt Befehle über **Benachrichtigungen** – genau wie die Han
 | Nachricht | *(kein command)* | Zeigt nur eine Benachrichtigung an |
 
 > ⚠️ `mute`, `volume_up`, `volume_down`, `monitor_on`, `monitor_off` und `screenshot` sind ab v2.1.0 verfügbar!
+>
+> ⚠️ **Helligkeits-Befehle** (`brightness_up`, `brightness_down`, `brightness:XX`) funktionieren in der Regel **nur auf Laptops** mit integriertem Display. An Desktop-PCs mit externen Monitoren werden die Befehle ignoriert – die meisten externen Monitore unterstützen keine Software-Helligkeitssteuerung.
 
 ### Beispiele
 
