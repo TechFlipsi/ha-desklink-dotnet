@@ -39,7 +39,8 @@ public class SettingsWindow : Form
     private ComboBox _hotkeySettingsModBox = null!;
     private ComboBox _hotkeySettingsKeyBox = null!;
     private Label _statusLabel = null!;
-    private DataGridView _qaGrid = null!;
+    private ListBox _qaList = null!;
+    private List<(string entityId, string friendlyName)> _entities = new();
 
     private static readonly Color DarkBg = Color.FromArgb(32, 32, 32);
     private static readonly Color DarkFg = Color.FromArgb(230, 230, 230);
@@ -59,15 +60,14 @@ public class SettingsWindow : Form
         FormBorderStyle = FormBorderStyle.Sizable;
         InitializeComponents();
         LoadSettings();
+        LoadQuickActionsList();
         ApplyTheme(_config.Theme);
     }
 
     private void InitializeComponents()
     {
-        // Main panel that fills the entire window and scrolls
         var mainPanel = new Panel { Dock = DockStyle.Fill, AutoScroll = true, Padding = new Padding(20) };
 
-        // Inner container that stretches to fill width
         var content = new FlowLayoutPanel
         {
             Dock = DockStyle.Top,
@@ -77,7 +77,6 @@ public class SettingsWindow : Form
             Width = mainPanel.Width - 50,
         };
 
-        // Resize content when panel resizes
         mainPanel.Resize += (s, e) => { content.Width = mainPanel.Width - 50; };
 
         // === Connection Section ===
@@ -180,38 +179,27 @@ public class SettingsWindow : Form
         content.Controls.Add(MakeHeader("⚡ " + Localization.Get("settings_quickactions")));
         content.Controls.Add(new Label { Text = Localization.Get("settings_quickactions_desc"), AutoSize = true, ForeColor = Color.Gray, Margin = new Padding(0, 0, 0, 8) });
 
-        _qaGrid = new DataGridView
+        // Load entities button
+        var qaLoadPanel = new FlowLayoutPanel { Dock = DockStyle.Top, FlowDirection = FlowDirection.LeftToRight, AutoSize = true, Margin = new Padding(0, 0, 0, 4) };
+        qaLoadPanel.Controls.Add(MakeButton("📥 " + Localization.Get("settings_load_entities"), Color.FromArgb(0, 130, 100), OnLoadEntities));
+        content.Controls.Add(qaLoadPanel);
+
+        // Quick Actions list
+        _qaList = new ListBox
         {
             Dock = DockStyle.Top,
-            AllowUserToAddRows = true,
-            AllowUserToDeleteRows = true,
-            AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
-            MinimumSize = new Size(0, 150),
-            MaximumSize = new Size(0, 220),
+            Height = 180,
+            MinimumSize = new Size(0, 120),
         };
-        var entityCol = new DataGridViewComboBoxColumn
-        {
-            HeaderText = Localization.Get("settings_qa_entity"),
-            Name = "EntityID",
-            AutoComplete = true,
-            FlatStyle = FlatStyle.Standard,
-            Width = 250,
-        };
-        var nameCol = new DataGridViewTextBoxColumn
-        {
-            HeaderText = Localization.Get("settings_qa_name"),
-            Name = "Name",
-            AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill,
-        };
-        _qaGrid.Columns.AddRange(entityCol, nameCol);
-        _qaGrid.EditingControlShowing += OnGridEditingControlShowing;
-        content.Controls.Add(_qaGrid);
+        content.Controls.Add(_qaList);
 
-        var qaBtnPanel = new FlowLayoutPanel { Dock = DockStyle.Top, FlowDirection = FlowDirection.LeftToRight, WrapContents = true, AutoSize = true, Padding = new Padding(0, 8, 0, 15) };
-        qaBtnPanel.Controls.Add(MakeButton(Localization.Get("settings_load_entities"), Color.FromArgb(0, 130, 100), OnLoadEntities));
-        qaBtnPanel.Controls.Add(MakeButton(Localization.Get("settings_edit_json"), Color.FromArgb(100, 100, 100), OnEditJson));
-        qaBtnPanel.Controls.Add(MakeButton(Localization.Get("settings_save_quickactions"), AccentBlue, OnSaveQuickActions));
-        content.Controls.Add(qaBtnPanel);
+        // Add/Remove buttons
+        var qaEditPanel = new FlowLayoutPanel { Dock = DockStyle.Top, FlowDirection = FlowDirection.LeftToRight, AutoSize = true, Padding = new Padding(0, 4, 0, 15) };
+        qaEditPanel.Controls.Add(MakeButton("➕ " + Localization.Get("settings_qa_add", "Hinzufügen"), Color.FromArgb(0, 130, 100), OnAddQuickAction));
+        qaEditPanel.Controls.Add(MakeButton("✏️ " + Localization.Get("settings_qa_edit", "Bearbeiten"), Color.FromArgb(100, 100, 100), OnEditQuickAction));
+        qaEditPanel.Controls.Add(MakeButton("🗑️ " + Localization.Get("settings_qa_remove", "Entfernen"), Color.FromArgb(180, 80, 0), OnRemoveQuickAction));
+        qaEditPanel.Controls.Add(MakeButton("💾 " + Localization.Get("settings_save_quickactions"), AccentBlue, OnSaveQuickActions));
+        content.Controls.Add(qaEditPanel);
 
         // === Status ===
         _statusLabel = new Label { Text = Localization.Get("settings_saved"), ForeColor = Color.Gray, AutoSize = true, Margin = new Padding(0, 4, 0, 8) };
@@ -223,13 +211,7 @@ public class SettingsWindow : Form
 
     private static Label MakeHeader(string text)
     {
-        return new Label
-        {
-            Text = text,
-            Font = new Font("Segoe UI", 11, FontStyle.Bold),
-            AutoSize = true,
-            Margin = new Padding(0, 8, 0, 2),
-        };
+        return new Label { Text = text, Font = new Font("Segoe UI", 11, FontStyle.Bold), AutoSize = true, Margin = new Padding(0, 8, 0, 2) };
     }
 
     private static Label MakeLabel(string text)
@@ -254,36 +236,263 @@ public class SettingsWindow : Form
         return btn;
     }
 
+    private List<QuickAction> GetCurrentQuickActions()
+    {
+        var actions = new List<QuickAction>();
+        try
+        {
+            var arr = JsonDocument.Parse(_config.QuickActions).RootElement;
+            foreach (var item in arr.EnumerateArray())
+            {
+                var entityId = item.TryGetProperty("entityId", out var eid) ? eid.GetString() ?? "" : "";
+                var name = item.TryGetProperty("name", out var n) ? n.GetString() ?? entityId : entityId;
+                if (!string.IsNullOrEmpty(entityId))
+                    actions.Add(new QuickAction(entityId, name));
+            }
+        }
+        catch { }
+        return actions;
+    }
+
+    private void LoadQuickActionsList()
+    {
+        _qaList.Items.Clear();
+        var actions = GetCurrentQuickActions();
+        foreach (var a in actions)
+            _qaList.Items.Add($"{a.Name} ({a.EntityId})");
+    }
+
+    private void OnAddQuickAction(object? sender, EventArgs e)
+    {
+        if (_entities.Count == 0)
+        {
+            MessageBox.Show(Localization.Get("settings_load_entities_first", "Bitte zuerst 'Entities laden' klicken!"), "HA DeskLink", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        using var dialog = new Form
+        {
+            Text = Localization.Get("settings_qa_add", "Quick Action hinzufügen"),
+            Size = new Size(450, 200),
+            StartPosition = FormStartPosition.CenterParent,
+            MinimizeBox = false,
+            MaximizeBox = false,
+        };
+
+        var table = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 3, Padding = new Padding(16) };
+        table.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 100));
+        table.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+
+        var entityCombo = new ComboBox { Dock = DockStyle.Fill, DropDownStyle = ComboBoxStyle.DropDownList };
+        foreach (var (entityId, friendlyName) in _entities)
+            entityCombo.Items.Add(new EntityItem(entityId, friendlyName));
+        if (entityCombo.Items.Count > 0) entityCombo.SelectedIndex = 0;
+
+        var nameBox = new TextBox { Dock = DockStyle.Fill };
+
+        // Auto-fill name when entity is selected
+        entityCombo.SelectedIndexChanged += (s, args) =>
+        {
+            if (entityCombo.SelectedItem is EntityItem item)
+                nameBox.Text = item.FriendlyName;
+        };
+        if (entityCombo.Items.Count > 0) entityCombo.SelectedIndex = 0;
+
+        var okBtn = new Button { Text = Localization.Get("settings_qa_add", "Hinzufügen"), Dock = DockStyle.Fill, BackColor = AccentBlue, ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
+        okBtn.FlatAppearance.BorderSize = 0;
+
+        table.Controls.Add(MakeLabel("Entity:"), 0, 0);
+        table.Controls.Add(entityCombo, 1, 0);
+        table.Controls.Add(MakeLabel(Localization.Get("settings_qa_name", "Name:")), 0, 1);
+        table.Controls.Add(nameBox, 1, 1);
+        table.Controls.Add(new Label(), 0, 2);
+        table.Controls.Add(okBtn, 1, 2);
+
+        okBtn.Click += (s, args) =>
+        {
+            if (entityCombo.SelectedItem is EntityItem item)
+            {
+                var actions = GetCurrentQuickActions();
+                actions.Add(new QuickAction(item.EntityId, string.IsNullOrEmpty(nameBox.Text) ? item.FriendlyName : nameBox.Text));
+                _config.QuickActions = JsonSerializer.Serialize(actions);
+                _config.Save();
+                LoadQuickActionsList();
+                dialog.Close();
+            }
+        };
+
+        dialog.Controls.Add(table);
+        ApplyThemeToControls(dialog, _config.Theme);
+        dialog.ShowDialog(this);
+    }
+
+    private void OnEditQuickAction(object? sender, EventArgs e)
+    {
+        if (_qaList.SelectedIndex < 0)
+        {
+            MessageBox.Show(Localization.Get("settings_qa_select_first", "Bitte zuerst eine Quick Action auswählen!"), "HA DeskLink", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        var actions = GetCurrentQuickActions();
+        var idx = _qaList.SelectedIndex;
+        if (idx >= actions.Count) return;
+
+        var action = actions[idx];
+
+        using var dialog = new Form
+        {
+            Text = Localization.Get("settings_qa_edit", "Quick Action bearbeiten"),
+            Size = new Size(450, 250),
+            StartPosition = FormStartPosition.CenterParent,
+            MinimizeBox = false,
+            MaximizeBox = false,
+        };
+
+        var table = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 4, Padding = new Padding(16) };
+        table.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 100));
+        table.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+
+        var entityCombo = new ComboBox { Dock = DockStyle.Fill, DropDownStyle = ComboBoxStyle.DropDownList };
+        foreach (var (entityId, friendlyName) in _entities)
+            entityCombo.Items.Add(new EntityItem(entityId, friendlyName));
+
+        // Select current entity
+        for (int i = 0; i < entityCombo.Items.Count; i++)
+        {
+            if (entityCombo.Items[i] is EntityItem ei && ei.EntityId == action.EntityId)
+            {
+                entityCombo.SelectedIndex = i;
+                break;
+            }
+        }
+        if (entityCombo.SelectedIndex < 0 && entityCombo.Items.Count > 0) entityCombo.SelectedIndex = 0;
+
+        var nameBox = new TextBox { Dock = DockStyle.Fill, Text = action.Name };
+
+        entityCombo.SelectedIndexChanged += (s, args) =>
+        {
+            if (entityCombo.SelectedItem is EntityItem item)
+                nameBox.Text = item.FriendlyName;
+        };
+
+        var deleteBtn = new Button { Text = "🗑️ " + Localization.Get("settings_qa_remove", "Entfernen"), BackColor = Color.FromArgb(180, 80, 0), ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
+        deleteBtn.FlatAppearance.BorderSize = 0;
+        var saveBtn = new Button { Text = "💾 " + Localization.Get("settings_save", "Speichern"), BackColor = AccentBlue, ForeColor = Color.White, FlatStyle = FlatStyle.Flat };
+        saveBtn.FlatAppearance.BorderSize = 0;
+
+        var btnPanel = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight };
+        btnPanel.Controls.Add(saveBtn);
+        btnPanel.Controls.Add(deleteBtn);
+
+        table.Controls.Add(MakeLabel("Entity:"), 0, 0);
+        table.Controls.Add(entityCombo, 1, 0);
+        table.Controls.Add(MakeLabel(Localization.Get("settings_qa_name", "Name:")), 0, 1);
+        table.Controls.Add(nameBox, 1, 1);
+        table.Controls.Add(new Label(), 0, 2);
+        table.Controls.Add(btnPanel, 1, 2);
+
+        saveBtn.Click += (s, args) =>
+        {
+            if (entityCombo.SelectedItem is EntityItem item)
+            {
+                actions[idx] = new QuickAction(item.EntityId, string.IsNullOrEmpty(nameBox.Text) ? item.FriendlyName : nameBox.Text);
+                _config.QuickActions = JsonSerializer.Serialize(actions);
+                _config.Save();
+                LoadQuickActionsList();
+                dialog.Close();
+            }
+        };
+
+        deleteBtn.Click += (s, args) =>
+        {
+            actions.RemoveAt(idx);
+            _config.QuickActions = JsonSerializer.Serialize(actions);
+            _config.Save();
+            LoadQuickActionsList();
+            dialog.Close();
+        };
+
+        dialog.Controls.Add(table);
+        ApplyThemeToControls(dialog, _config.Theme);
+        dialog.ShowDialog(this);
+    }
+
+    private void OnRemoveQuickAction(object? sender, EventArgs e)
+    {
+        if (_qaList.SelectedIndex < 0)
+        {
+            MessageBox.Show(Localization.Get("settings_qa_select_first", "Bitte zuerst eine Quick Action auswählen!"), "HA DeskLink", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        var actions = GetCurrentQuickActions();
+        var idx = _qaList.SelectedIndex;
+        if (idx < actions.Count)
+        {
+            actions.RemoveAt(idx);
+            _config.QuickActions = JsonSerializer.Serialize(actions);
+            _config.Save();
+            LoadQuickActionsList();
+        }
+    }
+
+    private void ApplyThemeToControls(Form dialog, string theme)
+    {
+        bool dark = theme == "dark" || (theme == "system" && IsSystemDark());
+        if (dark)
+        {
+            dialog.BackColor = DarkBg;
+            dialog.ForeColor = DarkFg;
+        }
+        foreach (Control c in GetAllControls(dialog))
+        {
+            if (dark)
+            {
+                if (c is TextBox || c is ComboBox || c is NumericUpDown || c is ListBox)
+                {
+                    c.BackColor = DarkInput;
+                    c.ForeColor = DarkFg;
+                }
+            }
+            else
+            {
+                if (c is TextBox || c is ComboBox || c is NumericUpDown || c is ListBox)
+                {
+                    c.BackColor = SystemColors.Window;
+                    c.ForeColor = SystemColors.WindowText;
+                }
+            }
+        }
+    }
+
+    private class EntityItem
+    {
+        public string EntityId { get; }
+        public string FriendlyName { get; }
+        public EntityItem(string entityId, string friendlyName) { EntityId = entityId; FriendlyName = friendlyName; }
+        public override string ToString() => $"{FriendlyName} ({EntityId})";
+    }
+
     private void ApplyTheme(string theme)
     {
         bool dark = theme == "dark" || (theme == "system" && IsSystemDark());
         Color bg = dark ? DarkBg : SystemColors.Window;
         Color fg = dark ? DarkFg : SystemColors.WindowText;
         Color inputBg = dark ? DarkInput : SystemColors.Window;
-        Color groupBg = dark ? DarkBg : SystemColors.Window;
 
         BackColor = bg;
         ForeColor = fg;
 
         foreach (Control c in GetAllControls(this))
         {
-            if (c is TextBox || c is ComboBox || c is NumericUpDown)
+            if (c is TextBox || c is ComboBox || c is NumericUpDown || c is ListBox)
             {
                 c.BackColor = inputBg;
                 c.ForeColor = fg;
             }
-            else if (c is DataGridView grid)
-            {
-                grid.BackgroundColor = inputBg;
-                grid.DefaultCellStyle.BackColor = inputBg;
-                grid.DefaultCellStyle.ForeColor = fg;
-                grid.ColumnHeadersDefaultCellStyle.BackColor = dark ? DarkBorder : SystemColors.Control;
-                grid.ColumnHeadersDefaultCellStyle.ForeColor = fg;
-                grid.EnableHeadersVisualStyles = !dark;
-            }
             else if (c is Button btn)
             {
-                // Keep accent-colored buttons as-is
                 if (btn.ForeColor != Color.White)
                     btn.ForeColor = fg;
             }
@@ -348,7 +557,6 @@ public class SettingsWindow : Form
         var keyIndex = _hotkeyKeyBox.Items.IndexOf(_config.HotkeyKey.ToUpper());
         _hotkeyKeyBox.SelectedIndex = keyIndex >= 0 ? keyIndex : 0;
 
-        // Dashboard hotkey
         _hotkeyDashModBox.SelectedIndex = _config.HotkeyDashboardModifiers switch
         {
             "ctrl_shift" => 0, "ctrl_alt" => 1, "ctrl" => 2, "alt" => 3, "shift" => 4, "none" => 5, _ => 0
@@ -356,21 +564,12 @@ public class SettingsWindow : Form
         var dashKeyIndex = _hotkeyDashKeyBox.Items.IndexOf(_config.HotkeyDashboardKey.ToUpper());
         _hotkeyDashKeyBox.SelectedIndex = dashKeyIndex >= 0 ? dashKeyIndex : 0;
 
-        // Settings hotkey
         _hotkeySettingsModBox.SelectedIndex = _config.HotkeySettingsModifiers switch
         {
             "ctrl_shift" => 0, "ctrl_alt" => 1, "ctrl" => 2, "alt" => 3, "shift" => 4, "none" => 5, _ => 0
         };
         var settingsKeyIndex = _hotkeySettingsKeyBox.Items.IndexOf(_config.HotkeySettingsKey.ToUpper());
         _hotkeySettingsKeyBox.SelectedIndex = settingsKeyIndex >= 0 ? settingsKeyIndex : 0;
-
-        try
-        {
-            var actions = JsonSerializer.Deserialize<List<QuickAction>>(_config.QuickActions) ?? new List<QuickAction>();
-            foreach (var action in actions)
-                _qaGrid.Rows.Add(action.EntityId, action.Name);
-        }
-        catch { }
     }
 
     private void OnSave(object? sender, EventArgs e)
@@ -440,9 +639,6 @@ public class SettingsWindow : Form
         }
     }
 
-    private List<(string entityId, string friendlyName)> _entities = new();
-    private List<string> _entityList = new();
-
     private async void OnLoadEntities(object? sender, EventArgs e)
     {
         if (_api == null) { _statusLabel.Text = Localization.Get("settings_no_connection"); return; }
@@ -451,15 +647,7 @@ public class SettingsWindow : Form
         try
         {
             _entities = await _api.GetEntitiesAsync();
-            _entityList = _entities.Select(e => e.entityId).OrderBy(x => x).ToList();
-
-            // Populate ComboBox column items
-            if (_qaGrid.Columns[0] is DataGridViewComboBoxColumn comboCol)
-            {
-                comboCol.Items.Clear();
-                comboCol.Items.AddRange(_entityList.ToArray());
-            }
-
+            _entities = _entities.OrderBy(x => x.entityId).ToList();
             _statusLabel.Text = $"{Localization.Get("settings_entities_loaded")} ({_entities.Count})";
         }
         catch (Exception ex)
@@ -468,100 +656,10 @@ public class SettingsWindow : Form
         }
     }
 
-    private void OnGridEditingControlShowing(object? sender, DataGridViewEditingControlShowingEventArgs e)
-    {
-        if (_qaGrid.CurrentCell.ColumnIndex == 0 && e.Control is ComboBox cb)
-        {
-            cb.DropDownStyle = ComboBoxStyle.DropDown;
-        }
-    }
-
     private void OnSaveQuickActions(object? sender, EventArgs e)
     {
-        var actions = new List<QuickAction>();
-        foreach (DataGridViewRow row in _qaGrid.Rows)
-        {
-            if (row.IsNewRow) continue;
-            var entityId = row.Cells[0].Value?.ToString()?.Trim() ?? "";
-            var name = row.Cells[1].Value?.ToString()?.Trim() ?? "";
-            if (!string.IsNullOrEmpty(entityId) && !string.IsNullOrEmpty(name))
-                actions.Add(new QuickAction(entityId, name));
-        }
-        _config.QuickActions = JsonSerializer.Serialize(actions);
-        _config.Save();
-        _statusLabel.Text = Localization.Get("settings_quickactions_saved");
-    }
-
-    private void OnEditJson(object? sender, EventArgs e)
-    {
-        var actions = new List<QuickAction>();
-        foreach (DataGridViewRow row in _qaGrid.Rows)
-        {
-            if (row.IsNewRow) continue;
-            var entityId = row.Cells[0].Value?.ToString()?.Trim() ?? "";
-            var name = row.Cells[1].Value?.ToString()?.Trim() ?? "";
-            if (!string.IsNullOrEmpty(entityId) && !string.IsNullOrEmpty(name))
-                actions.Add(new QuickAction(entityId, name));
-        }
-        var json = JsonSerializer.Serialize(actions, new JsonSerializerOptions { WriteIndented = true });
-
-        using var dialog = new Form
-        {
-            Text = "Quick Actions JSON",
-            Size = new Size(550, 450),
-            StartPosition = FormStartPosition.CenterParent,
-            MinimizeBox = false,
-            MaximizeBox = false
-        };
-
-        var jsonBox = new TextBox
-        {
-            Dock = DockStyle.Fill,
-            Multiline = true,
-            ScrollBars = ScrollBars.Vertical,
-            Font = new Font("Consolas", 10),
-            Text = json
-        };
-
-        var btnPanel = new FlowLayoutPanel { Dock = DockStyle.Bottom, FlowDirection = FlowDirection.RightToLeft, Height = 50, Padding = new Padding(8) };
-        var cancelBtn = new Button { Text = Localization.Get("settings_cancel"), Size = new Size(90, 35) };
-        cancelBtn.Click += (s, ev) => dialog.Close();
-        btnPanel.Controls.Add(cancelBtn);
-        var applyBtn = new Button { Text = Localization.Get("settings_save"), Size = new Size(90, 35) };
-        applyBtn.Click += (s, ev) =>
-        {
-            try
-            {
-                var parsed = JsonSerializer.Deserialize<List<QuickAction>>(jsonBox.Text);
-                if (parsed != null)
-                {
-                    _qaGrid.Rows.Clear();
-                    foreach (var action in parsed)
-                        if (!string.IsNullOrEmpty(action.EntityId) && !string.IsNullOrEmpty(action.Name))
-                            _qaGrid.Rows.Add(action.EntityId, action.Name);
-                    _statusLabel.Text = Localization.Get("settings_quickactions_saved");
-                    dialog.Close();
-                }
-            }
-            catch (JsonException ex)
-            {
-                MessageBox.Show($"JSON Error: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        };
-        btnPanel.Controls.Add(applyBtn);
-
-        bool dark = _config.Theme == "dark" || (_config.Theme == "system" && IsSystemDark());
-        if (dark)
-        {
-            dialog.BackColor = DarkBg;
-            jsonBox.BackColor = DarkInput;
-            jsonBox.ForeColor = DarkFg;
-            btnPanel.BackColor = DarkBg;
-        }
-
-        dialog.Controls.Add(jsonBox);
-        dialog.Controls.Add(btnPanel);
-        dialog.ShowDialog(this);
+        // Quick actions are saved immediately when added/edited/removed
+        _statusLabel.Text = $"✓ {Localization.Get("settings_quickactions_saved")}";
     }
 
     private static SettingsWindow? _instance;

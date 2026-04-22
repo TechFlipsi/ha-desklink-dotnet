@@ -1,6 +1,13 @@
 # Changelog
 
 
+## [v3.0.16] - 2026-04-22
+- 🎨 **Quick Actions komplett vereinfacht** – ListBox statt DataGridView, einfaches Hinzufügen/Bearbeiten/Entfernen per Dialog
+- 🐛 **Bug Fix:** DataGridViewComboBox-Ausnahme behoben (Wert nicht in Items-Liste)
+- 🐛 **Bug Fix:** Quick Actions Hotkey zeigt jetzt immer aktuelle Actions (statt alte geladene)
+- ✨ **Neu:** Entity-Auswahl per Dropdown mit automatischer Friendly-Name-Übernahme
+- ✨ **Neu:** Löschen-Button direkt im Bearbeiten-Dialog
+
 ## [v3.0.15] - 2026-04-22
 - 🐛 Fix: readonly field assignment in QuickActionHandler
 - 🐛 Fix: DataGridViewComboBoxColumn has no DropDownStyle property → set via EditingControlShowing event

@@ -148,14 +148,13 @@ public class DeskLinkApp
         // Quick Actions - register global hotkey
         try
         {
-            var quickActions = LoadQuickActions();
-            if (quickActions.Count > 0)
+            _quickActionHandler = new QuickActionHandler(() =>
             {
-                _quickActionHandler = new QuickActionHandler(() =>
-                    QuickActionWindow.ShowActions(quickActions, _api),
-                    _config.HotkeyModifiers, _config.HotkeyKey);
-                _quickActionHandler.Start();
-            }
+                var qa = LoadQuickActions();
+                QuickActionWindow.ShowActions(qa, _api);
+            },
+            _config.HotkeyModifiers, _config.HotkeyKey);
+            _quickActionHandler.Start();
         }
         catch { }
 

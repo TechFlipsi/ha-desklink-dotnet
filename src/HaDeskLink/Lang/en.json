@@ -75,7 +75,7 @@
   "settings_reregister_confirm": "Re-register all sensors with Home Assistant?\n\nThis can fix missing sensors after an update.",
   "settings_reregister_done": "Sensors re-registered!",
   "settings_qa_entity": "Entity ID",
-  "settings_qa_name": "Name",
+  "settings_qa_name": "Name:",
   "settings_quickactions_desc": "Enter entity ID and name for Quick Action buttons.",
   "settings_quickactions_saved": "Quick Actions saved!",
   "settings_load_entities": "Load Entities",
@@ -92,5 +92,10 @@
   "settings_actions": "Actions",
   "settings_hotkey_qa": "Quick Actions Hotkey",
   "settings_hotkey_dashboard": "Dashboard Hotkey",
-  "settings_hotkey_settings": "Settings Hotkey"
+  "settings_hotkey_settings": "Settings Hotkey",
+  "settings_qa_add": "Add",
+  "settings_qa_edit": "Edit",
+  "settings_qa_remove": "Remove",
+  "settings_qa_select_first": "Please select a Quick Action first!",
+  "settings_load_entities_first": "Please click 'Load Entities' first!"
 }

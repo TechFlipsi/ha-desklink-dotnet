@@ -75,7 +75,7 @@
   "settings_reregister_confirm": "Re-register all sensors with Home Assistant?\n\nThis can fix missing sensors after an update.",
   "settings_reregister_done": "Sensors re-registered!",
   "settings_qa_entity": "Entity ID",
-  "settings_qa_name": "Name",
+  "settings_qa_name": "名前:",
   "settings_quickactions_desc": "Enter entity ID and name for Quick Action buttons.",
   "settings_quickactions_saved": "Quick Actions saved!",
   "settings_load_entities": "Load Entities",
@@ -92,5 +92,10 @@
   "settings_actions": "アクション",
   "settings_hotkey_qa": "クイックアクション ホットキー",
   "settings_hotkey_dashboard": "ダッシュボード ホットキー",
-  "settings_hotkey_settings": "設定 ホットキー"
+  "settings_hotkey_settings": "設定 ホットキー",
+  "settings_qa_add": "追加",
+  "settings_qa_edit": "編集",
+  "settings_qa_remove": "削除",
+  "settings_qa_select_first": "まずクイックアクションを選択してください！",
+  "settings_load_entities_first": "最初に「エンティティを読み込む」をクリックしてください！"
 }
