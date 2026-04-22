@@ -157,14 +157,26 @@ public class SettingsWindow : Form
             Dock = DockStyle.Top,
             AllowUserToAddRows = true,
             AllowUserToDeleteRows = true,
-            ColumnCount = 2,
             AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
             MinimumSize = new Size(0, 150),
             MaximumSize = new Size(0, 220),
         };
-        _qaGrid.Columns[0].HeaderText = Localization.Get("settings_qa_entity");
-        _qaGrid.Columns[1].HeaderText = Localization.Get("settings_qa_name");
-        _qaGrid.EditingControlShowing += OnGridEditingControlShowing;
+        var entityCol = new DataGridViewComboBoxColumn
+        {
+            HeaderText = Localization.Get("settings_qa_entity"),
+            Name = "EntityID",
+            DropDownStyle = ComboBoxStyle.DropDown,
+            AutoComplete = true,
+            FlatStyle = FlatStyle.Standard,
+            Width = 250,
+        };
+        var nameCol = new DataGridViewTextBoxColumn
+        {
+            HeaderText = Localization.Get("settings_qa_name"),
+            Name = "Name",
+            AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill,
+        };
+        _qaGrid.Columns.AddRange(entityCol, nameCol);
         content.Controls.Add(_qaGrid);
 
         var qaBtnPanel = new FlowLayoutPanel { Dock = DockStyle.Top, FlowDirection = FlowDirection.LeftToRight, WrapContents = true, AutoSize = true, Padding = new Padding(0, 8, 0, 15) };
@@ -373,7 +385,7 @@ public class SettingsWindow : Form
     }
 
     private List<(string entityId, string friendlyName)> _entities = new();
-    private AutoCompleteStringCollection _entityAutoComplete = new();
+    private List<string> _entityList = new();
 
     private async void OnLoadEntities(object? sender, EventArgs e)
     {
@@ -383,28 +395,20 @@ public class SettingsWindow : Form
         try
         {
             _entities = await _api.GetEntitiesAsync();
-            _entityAutoComplete = new AutoCompleteStringCollection();
-            _entityAutoComplete.AddRange(_entities.Select(e => e.entityId).ToArray());
+            _entityList = _entities.Select(e => e.entityId).OrderBy(x => x).ToList();
+
+            // Populate ComboBox column items
+            if (_qaGrid.Columns[0] is DataGridViewComboBoxColumn comboCol)
+            {
+                comboCol.Items.Clear();
+                comboCol.Items.AddRange(_entityList.ToArray());
+            }
+
             _statusLabel.Text = $"{Localization.Get("settings_entities_loaded")} ({_entities.Count})";
         }
         catch (Exception ex)
         {
             _statusLabel.Text = $"{Localization.Get("settings_entities_failed")}: {ex.Message}";
-        }
-    }
-
-    private void OnGridEditingControlShowing(object? sender, DataGridViewEditingControlShowingEventArgs e)
-    {
-        if (_qaGrid.CurrentCell.ColumnIndex == 0 && e.Control is TextBox tb)
-        {
-            tb.AutoCompleteMode = AutoCompleteMode.SuggestAppend;
-            tb.AutoCompleteSource = AutoCompleteSource.CustomSource;
-            tb.AutoCompleteCustomSource = _entityAutoComplete;
-        }
-        else if (e.Control is TextBox tb2)
-        {
-            tb2.AutoCompleteMode = AutoCompleteMode.None;
-            tb2.AutoCompleteCustomSource = new AutoCompleteStringCollection();
         }
     }
 

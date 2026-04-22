@@ -1,6 +1,9 @@
 # Changelog
 
 
+## [v3.0.13] - 2026-04-22
+- 🐛 **Bug Fix:** Entity-Dropdown im Quick Actions Editor – ComboBox statt TextBox für Entity-Auswahl
+
 ## [v3.0.12] - 2026-04-22
 - 🎨 **Redesign:** Einstellungen komplett neu gestaltet – volle Breite, scrollbar, responsive Layout
 
