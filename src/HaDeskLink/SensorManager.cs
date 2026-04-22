@@ -89,7 +89,7 @@ public class SensorManager : IDisposable
 
         // Fullscreen sensor
         var fullscreen = GetFullscreenInfo();
-        if (fullscreen != null) sensors.AddRange(fullscreen);
+        if (fullscreen != null) sensors.Add(fullscreen);
 
         // Monitor layout
         sensors.Add(GetMonitorLayout());
@@ -101,9 +101,6 @@ public class SensorManager : IDisposable
         // Network throughput
         sensors.AddRange(GetNetworkSensors());
 
-        // Webcam active sensor
-        var webcam = GetWebcamActive();
-        if (webcam != null) sensors.Add(webcam);
 
         return sensors;
     }
@@ -596,39 +593,22 @@ public class SensorManager : IDisposable
     private const uint WS_CAPTION = 0x00C00000;
     private const uint WS_THICKFRAME = 0x00040000;
 
-    private List<SensorData>? GetFullscreenInfo()
+    private SensorData? GetFullscreenInfo()
     {
         try
         {
             var hwnd = GetForegroundWindow();
             if (hwnd == IntPtr.Zero)
-            {
-                return new List<SensorData>
-                {
-                    new SensorData("fullscreen", "Fullscreen", "off", icon: "mdi:fullscreen", stateClass: "measurement"),
-                    new SensorData("fullscreen_app", "Fullscreen App", "none", icon: "mdi:application")
-                };
-            }
+                return new SensorData("fullscreen", "Fullscreen", "off", icon: "mdi:fullscreen", stateClass: "measurement");
 
             // Get window title
             var titleBuilder = new System.Text.StringBuilder(256);
             GetWindowText(hwnd, titleBuilder, 256);
             var title = titleBuilder.ToString();
 
-            // Get class name
-            var classBuilder = new System.Text.StringBuilder(256);
-            GetClassName(hwnd, classBuilder, 256);
-            var className = classBuilder.ToString();
-
             // Empty title = not a user window
             if (string.IsNullOrWhiteSpace(title))
-            {
-                return new List<SensorData>
-                {
-                    new SensorData("fullscreen", "Fullscreen", "off", icon: "mdi:fullscreen", stateClass: "measurement"),
-                    new SensorData("fullscreen_app", "Fullscreen App", "none", icon: "mdi:application")
-                };
-            }
+                return new SensorData("fullscreen", "Fullscreen", "off", icon: "mdi:fullscreen", stateClass: "measurement");
 
             // Get window rect
             GetWindowRect(hwnd, out var windowRect);
@@ -675,14 +655,9 @@ public class SensorManager : IDisposable
             if (!fullscreen && coversWorkArea)
                 fullscreen = true;
 
-            var appName = fullscreen ? (string.IsNullOrWhiteSpace(title) ? className : title) : "none";
             var state = fullscreen ? "on" : "off";
 
-            return new List<SensorData>
-            {
-                new SensorData("fullscreen", "Fullscreen", state, icon: "mdi:fullscreen", stateClass: "measurement"),
-                new SensorData("fullscreen_app", "Fullscreen App", appName, icon: "mdi:application")
-            };
+            return new SensorData("fullscreen", "Fullscreen", state, icon: "mdi:fullscreen", stateClass: "measurement");
         }
         catch
         {
@@ -755,77 +730,6 @@ public class SensorManager : IDisposable
     }
 
     // === Webcam Active Sensor ===
-    private static SensorData? GetWebcamActive()
-    {
-        try
-        {
-            // Check if webcam is present
-            bool webcamPresent = false;
-            using var camSearcher = new ManagementObjectSearcher(
-                "SELECT Status FROM Win32_PnPEntity WHERE PNPClass='Camera'");
-            foreach (var obj in camSearcher.Get())
-            {
-                webcamPresent = true;
-                break;
-            }
-            if (!webcamPresent) return null;
-
-            // Check if webcam is currently in use:
-            // Method 1: WMI – when a camera is in use, its Status changes from "OK" to "Error" or "Degraded"
-            // Method 2: Check for processes known to use webcams
-            bool inUse = false;
-
-            try
-            {
-                using var statusSearcher = new ManagementObjectSearcher(
-                    "SELECT Status FROM Win32_PnPEntity WHERE PNPClass='Camera'");
-                foreach (var obj in statusSearcher.Get())
-                {
-                    var status = obj["Status"]?.ToString() ?? "";
-                    // When camera is in use by an app, WMI status changes from OK
-                    if (status != "OK" && !string.IsNullOrEmpty(status))
-                    {
-                        inUse = true;
-                        break;
-                    }
-                }
-            }
-            catch { }
-
-            // Method 2: Check for common video-conferencing / camera apps
-            if (!inUse)
-            {
-                try
-                {
-                    var cameraProcesses = new[] { "zoom", "teams", "skype", "obs64", "obs32",
-                        "WebexHost", "viber", "Camera", "Microsoft.Camera" };
-                    foreach (var proc in System.Diagnostics.Process.GetProcesses())
-                    {
-                        try
-                        {
-                            var name = proc.ProcessName.ToLowerInvariant();
-                            foreach (var cp in cameraProcesses)
-                            {
-                                if (name.Contains(cp.ToLowerInvariant()))
-                                {
-                                    inUse = true;
-                                    break;
-                                }
-                            }
-                            if (inUse) break;
-                        }
-                        catch { }
-                    }
-                }
-                catch { }
-            }
-
-            return new SensorData("webcam_active", Localization.Get("webcam_active", "Webcam Active"),
-                inUse ? "on" : "off", icon: "mdi:webcam", stateClass: "measurement");
-        }
-        catch { return null; }
-    }
-
     public void Dispose()
     {
         if (!_disposed)
