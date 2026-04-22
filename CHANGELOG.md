@@ -2,6 +2,13 @@
 
 Alle nennenswerten Änderungen an diesem Projekt werden hier dokumentiert.
 
+## [v2.2.0] - 2026-04-22
+- 🖥️ **Vollbild-Sensor** – zeigt welches Programm im Vollbild läuft (`sensor.ha_desklink_fullscreen_app`) + Ja/Nein (`binary_sensor.ha_desklink_fullscreen`)
+- 📺 **Monitor-Layout-Sensor** – aktives Monitor-Layout (`sensor.ha_desklink_monitor_layout`, z.B. "1+2")
+- ☀️ **Helligkeit steuern** – neue Befehle `brightness_up` (+10%), `brightness_down` (-10%), `brightness:50` (absolut) + Sensor `sensor.ha_desklink_brightness`
+- 🌍 **Mehrsprachigkeit** – Deutsch (Standard), Englisch, Spanisch, Französisch, Chinesisch, Japanisch – umschaltbar in Einstellungen
+- 🌍 Community kann eigene Sprachdateien hinzufügen (JSON im Lang/-Ordner)
+
 ## [v2.1.1] - 2026-04-22
 - Task Scheduler Autostart mit hoher Priorität, keine Verzögerung, läuft auch im Akkubetrieb
 - Discord-Community-Link im Tray-Menü

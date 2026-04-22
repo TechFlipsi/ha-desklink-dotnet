@@ -1,4 +1,4 @@
-# HA DeskLink v2.0
+# HA DeskLink v2.2
 
 **Windows Companion App für Home Assistant** – nativ, schnell, zuverlässig.
 
