@@ -13,7 +13,6 @@
 using System;
 using System.Collections.Generic;
 using System.Drawing;
-using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Windows.Forms;
@@ -22,6 +21,7 @@ namespace HaDeskLink;
 
 /// <summary>
 /// Settings window for configuring HA connection and app options.
+/// Modern layout with grouped sections.
 /// </summary>
 public class SettingsWindow : Form
 {
@@ -36,14 +36,18 @@ public class SettingsWindow : Form
     private ComboBox _updateChannelBox = null!;
     private ComboBox _languageBox = null!;
     private ComboBox _themeBox = null!;
+    private ComboBox _hotkeyModBox = null!;
+    private ComboBox _hotkeyKeyBox = null!;
     private Label _statusLabel = null!;
     private DataGridView _qaGrid = null!;
 
     // Colors
-    private static readonly Color DarkBg = Color.FromArgb(30, 30, 30);
-    private static readonly Color DarkFg = Color.FromArgb(220, 220, 220);
-    private static readonly Color DarkInput = Color.FromArgb(45, 45, 45);
-    private static readonly Color DarkBorder = Color.FromArgb(60, 60, 60);
+    private static readonly Color DarkBg = Color.FromArgb(32, 32, 32);
+    private static readonly Color DarkFg = Color.FromArgb(230, 230, 230);
+    private static readonly Color DarkInput = Color.FromArgb(48, 48, 48);
+    private static readonly Color DarkBorder = Color.FromArgb(64, 64, 64);
+    private static readonly Color DarkGroupBg = Color.FromArgb(38, 38, 38);
+    private static readonly Color AccentBlue = Color.FromArgb(0, 120, 215);
 
     public SettingsWindow(Config config, Action onReconnect, HaApiClient? api = null)
     {
@@ -51,8 +55,8 @@ public class SettingsWindow : Form
         _onReconnect = onReconnect;
         _api = api;
         Text = $"HA DeskLink - {Localization.Get("settings_title")}";
-        Size = new Size(520, 850);
-        MinimumSize = new Size(480, 750);
+        Size = new Size(560, 880);
+        MinimumSize = new Size(500, 780);
         StartPosition = FormStartPosition.CenterScreen;
         FormBorderStyle = FormBorderStyle.Sizable;
         InitializeComponents();
@@ -62,107 +66,107 @@ public class SettingsWindow : Form
 
     private void InitializeComponents()
     {
-        var panel = new TableLayoutPanel
+        var scrollPanel = new Panel { Dock = DockStyle.Fill, AutoScroll = true };
+        var layout = new FlowLayoutPanel
         {
             Dock = DockStyle.Fill,
-            ColumnCount = 2,
-            RowCount = 16,
-            Padding = new Padding(15),
-            AutoScroll = true,
-        };
-        panel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 140));
-        panel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-
-        // Row 0: HA URL
-        panel.Controls.Add(new Label { Text = Localization.Get("settings_ha_url"), Anchor = AnchorStyles.Left, AutoSize = true }, 0, 0);
-        _urlBox = new TextBox { Dock = DockStyle.Fill, Text = "https://homeassistant.local:8123" };
-        panel.Controls.Add(_urlBox, 1, 0);
-
-        // Row 1: Token
-        panel.Controls.Add(new Label { Text = Localization.Get("settings_token"), Anchor = AnchorStyles.Left, AutoSize = true }, 0, 1);
-        _tokenBox = new TextBox { Dock = DockStyle.Fill, UseSystemPasswordChar = true };
-        panel.Controls.Add(_tokenBox, 1, 1);
-
-        // Row 2: SSL
-        _sslCheck = new CheckBox { Text = Localization.Get("settings_verify_ssl"), AutoSize = true };
-        panel.Controls.Add(_sslCheck, 0, 2);
-        panel.SetColumnSpan(_sslCheck, 2);
-
-        // Row 3: SSL hint
-        var sslHint = new Label
-        {
-            Text = "Local/Self-signed: Uncheck | Nabu Casa/Let's Encrypt: Check",
-            Font = new Font("", 7),
-            ForeColor = Color.Gray,
+            FlowDirection = FlowDirection.TopDown,
+            WrapContents = false,
             AutoSize = true,
+            Padding = new Padding(16),
+            Width = 520,
         };
-        panel.Controls.Add(sslHint, 0, 3);
-        panel.SetColumnSpan(sslHint, 2);
 
-        // Row 4: Autostart
+        // === Connection Group ===
+        var connGroup = CreateGroupBox("🔌 " + Localization.Get("settings_connection", "Connection"));
+        var connPanel = new TableLayoutPanel { ColumnCount = 2, RowCount = 3, Dock = DockStyle.Fill, Padding = new Padding(8) };
+        connPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 130));
+        connPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+
+        connPanel.Controls.Add(CreateLabel(Localization.Get("settings_ha_url")), 0, 0);
+        _urlBox = new TextBox { Dock = DockStyle.Fill, Text = "https://homeassistant.local:8123" };
+        connPanel.Controls.Add(_urlBox, 1, 0);
+
+        connPanel.Controls.Add(CreateLabel(Localization.Get("settings_token")), 0, 1);
+        _tokenBox = new TextBox { Dock = DockStyle.Fill, UseSystemPasswordChar = true };
+        connPanel.Controls.Add(_tokenBox, 1, 1);
+
+        _sslCheck = new CheckBox { Text = Localization.Get("settings_verify_ssl"), AutoSize = true };
+        connPanel.Controls.Add(_sslCheck, 0, 2);
+        connPanel.SetColumnSpan(_sslCheck, 2);
+
+        connGroup.Controls.Add(connPanel);
+        layout.Controls.Add(connGroup);
+
+        // === General Group ===
+        var genGroup = CreateGroupBox("⚙️ " + Localization.Get("settings_general", "General"));
+        var genPanel = new TableLayoutPanel { ColumnCount = 2, RowCount = 6, Dock = DockStyle.Fill, Padding = new Padding(8) };
+        genPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 130));
+        genPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+
         _autostartCheck = new CheckBox { Text = Localization.Get("settings_autostart"), AutoSize = true };
-        panel.Controls.Add(_autostartCheck, 0, 4);
-        panel.SetColumnSpan(_autostartCheck, 2);
+        genPanel.Controls.Add(_autostartCheck, 0, 0);
+        genPanel.SetColumnSpan(_autostartCheck, 2);
 
-        // Row 5: Sensor interval
-        panel.Controls.Add(new Label { Text = Localization.Get("settings_sensor_interval"), Anchor = AnchorStyles.Left, AutoSize = true }, 0, 5);
+        genPanel.Controls.Add(CreateLabel(Localization.Get("settings_sensor_interval")), 0, 1);
         _intervalBox = new NumericUpDown { Minimum = 5, Maximum = 300, Value = 30, Dock = DockStyle.Fill };
-        panel.Controls.Add(_intervalBox, 1, 5);
+        genPanel.Controls.Add(_intervalBox, 1, 1);
 
-        // Row 6: Update channel
-        panel.Controls.Add(new Label { Text = Localization.Get("settings_update_channel"), Anchor = AnchorStyles.Left, AutoSize = true }, 0, 6);
+        genPanel.Controls.Add(CreateLabel(Localization.Get("settings_update_channel")), 0, 2);
         _updateChannelBox = new ComboBox { Dock = DockStyle.Fill, DropDownStyle = ComboBoxStyle.DropDownList };
         _updateChannelBox.Items.AddRange(new object[] { Localization.Get("settings_channel_stable"), Localization.Get("settings_channel_prerelease") });
-        panel.Controls.Add(_updateChannelBox, 1, 6);
+        genPanel.Controls.Add(_updateChannelBox, 1, 2);
 
-        // Row 7: Language
-        panel.Controls.Add(new Label { Text = Localization.Get("settings_language"), Anchor = AnchorStyles.Left, AutoSize = true }, 0, 7);
+        genPanel.Controls.Add(CreateLabel(Localization.Get("settings_language")), 0, 3);
         _languageBox = new ComboBox { Dock = DockStyle.Fill, DropDownStyle = ComboBoxStyle.DropDownList };
         foreach (var lang in Localization.AvailableLanguages)
-        {
             _languageBox.Items.Add($"{Localization.GetLanguageName(lang)} ({lang})");
-        }
-        panel.Controls.Add(_languageBox, 1, 7);
+        genPanel.Controls.Add(_languageBox, 1, 3);
 
-        // Row 8: Theme (Dark/Light)
-        panel.Controls.Add(new Label { Text = Localization.Get("settings_theme"), Anchor = AnchorStyles.Left, AutoSize = true }, 0, 8);
+        genPanel.Controls.Add(CreateLabel(Localization.Get("settings_theme")), 0, 4);
         _themeBox = new ComboBox { Dock = DockStyle.Fill, DropDownStyle = ComboBoxStyle.DropDownList };
         _themeBox.Items.AddRange(new object[] { Localization.Get("settings_theme_system"), Localization.Get("settings_theme_light"), Localization.Get("settings_theme_dark") });
-        panel.Controls.Add(_themeBox, 1, 8);
+        genPanel.Controls.Add(_themeBox, 1, 4);
 
-        // Row 9: Buttons
-        var btnPanel = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight, WrapContents = true, AutoSize = true };
-        var saveBtn = new Button { Text = Localization.Get("settings_save"), Size = new Size(100, 35) };
+        genPanel.Controls.Add(CreateLabel(Localization.Get("settings_hotkey_modifiers")), 0, 5);
+        var hotkeyPanel = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight };
+        _hotkeyModBox = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 120 };
+        _hotkeyModBox.Items.AddRange(new object[] { "Ctrl+Shift", "Ctrl+Alt", "Ctrl", "Alt", "Shift", Localization.Get("settings_hotkey_none") });
+        hotkeyPanel.Controls.Add(_hotkeyModBox);
+        hotkeyPanel.Controls.Add(new Label { Text = "+", AutoSize = true, Padding = new Padding(8, 6, 8, 0) });
+        _hotkeyKeyBox = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 80 };
+        _hotkeyKeyBox.Items.AddRange(new object[] { "H", "Q", "A", "S", "D", "F", "F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9", "F10", "F11", "F12", "Space" });
+        hotkeyPanel.Controls.Add(_hotkeyKeyBox);
+        genPanel.Controls.Add(hotkeyPanel, 1, 5);
+
+        genGroup.Controls.Add(genPanel);
+        layout.Controls.Add(genGroup);
+
+        // === Actions Group ===
+        var actionGroup = CreateGroupBox("🔧 " + Localization.Get("settings_actions", "Actions"));
+        var actionPanel = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight, WrapContents = true, Padding = new Padding(8) };
+        var saveBtn = CreateButton(Localization.Get("settings_save"), AccentBlue);
         saveBtn.Click += OnSave;
-        btnPanel.Controls.Add(saveBtn);
-        var reconnectBtn = new Button { Text = Localization.Get("settings_reconnect_msg").Replace("...", ""), Size = new Size(120, 35) };
+        actionPanel.Controls.Add(saveBtn);
+        var reconnectBtn = CreateButton(Localization.Get("settings_reconnect_msg").Replace("...", ""), Color.FromArgb(0, 100, 180));
         reconnectBtn.Click += OnReconnectClicked;
-        btnPanel.Controls.Add(reconnectBtn);
-        var resetDeviceBtn = new Button { Text = Localization.Get("settings_reset_device"), Size = new Size(140, 35) };
+        actionPanel.Controls.Add(reconnectBtn);
+        var resetDeviceBtn = CreateButton(Localization.Get("settings_reset_device"), Color.FromArgb(180, 80, 0));
         resetDeviceBtn.Click += OnResetDeviceId;
-        btnPanel.Controls.Add(resetDeviceBtn);
-        var reRegisterBtn = new Button { Text = Localization.Get("settings_reregister_sensors"), Size = new Size(160, 35) };
+        actionPanel.Controls.Add(resetDeviceBtn);
+        var reRegisterBtn = CreateButton(Localization.Get("settings_reregister_sensors"), Color.FromArgb(0, 130, 100));
         reRegisterBtn.Click += OnReRegisterSensors;
-        btnPanel.Controls.Add(reRegisterBtn);
-        panel.Controls.Add(btnPanel, 0, 9);
-        panel.SetColumnSpan(btnPanel, 2);
+        actionPanel.Controls.Add(reRegisterBtn);
+        actionGroup.Controls.Add(actionPanel);
+        layout.Controls.Add(actionGroup);
 
-        // Row 10: Status label
-        _statusLabel = new Label { Text = Localization.Get("settings_saved"), ForeColor = Color.Gray, AutoSize = true };
-        panel.Controls.Add(_statusLabel, 0, 10);
-        panel.SetColumnSpan(_statusLabel, 2);
+        // === Quick Actions Group ===
+        var qaGroup = CreateGroupBox("⚡ " + Localization.Get("settings_quickactions"));
+        var qaInnerPanel = new TableLayoutPanel { ColumnCount = 1, RowCount = 4, Dock = DockStyle.Fill, Padding = new Padding(8) };
 
-        // Row 11: Quick Actions header
-        var qaLabel = new Label { Text = Localization.Get("settings_quickactions"), AutoSize = true, Font = new Font("", 10, FontStyle.Bold) };
-        panel.Controls.Add(qaLabel, 0, 11);
-        panel.SetColumnSpan(qaLabel, 2);
-
-        // Row 12: Quick Actions description
         var qaDesc = new Label { Text = Localization.Get("settings_quickactions_desc"), AutoSize = true, ForeColor = Color.Gray };
-        panel.Controls.Add(qaDesc, 0, 12);
-        panel.SetColumnSpan(qaDesc, 2);
+        qaInnerPanel.Controls.Add(qaDesc);
 
-        // Row 13: Quick Actions grid
         _qaGrid = new DataGridView
         {
             Dock = DockStyle.Fill,
@@ -176,24 +180,60 @@ public class SettingsWindow : Form
         _qaGrid.Columns[0].HeaderText = Localization.Get("settings_qa_entity");
         _qaGrid.Columns[1].HeaderText = Localization.Get("settings_qa_name");
         _qaGrid.EditingControlShowing += OnGridEditingControlShowing;
-        panel.Controls.Add(_qaGrid, 0, 13);
-        panel.SetColumnSpan(_qaGrid, 2);
+        qaInnerPanel.Controls.Add(_qaGrid);
 
-        // Row 14: Buttons row (load entities + JSON edit + save)
-        var qaBtnPanel = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight, AutoSize = true };
-        var loadEntitiesBtn = new Button { Text = Localization.Get("settings_load_entities"), Size = new Size(140, 35) };
+        var qaBtnPanel = new FlowLayoutPanel { FlowDirection = FlowDirection.LeftToRight, AutoSize = true };
+        var loadEntitiesBtn = CreateButton(Localization.Get("settings_load_entities"), Color.FromArgb(0, 130, 100));
         loadEntitiesBtn.Click += OnLoadEntities;
         qaBtnPanel.Controls.Add(loadEntitiesBtn);
-        var jsonEditBtn = new Button { Text = Localization.Get("settings_edit_json"), Size = new Size(120, 35) };
+        var jsonEditBtn = CreateButton(Localization.Get("settings_edit_json"), Color.FromArgb(100, 100, 100));
         jsonEditBtn.Click += OnEditJson;
         qaBtnPanel.Controls.Add(jsonEditBtn);
-        var saveQaBtn = new Button { Text = Localization.Get("settings_save_quickactions"), Size = new Size(180, 35) };
+        var saveQaBtn = CreateButton(Localization.Get("settings_save_quickactions"), AccentBlue);
         saveQaBtn.Click += OnSaveQuickActions;
         qaBtnPanel.Controls.Add(saveQaBtn);
-        panel.Controls.Add(qaBtnPanel, 0, 14);
-        panel.SetColumnSpan(qaBtnPanel, 2);
+        qaInnerPanel.Controls.Add(qaBtnPanel);
 
-        Controls.Add(panel);
+        qaGroup.Controls.Add(qaInnerPanel);
+        layout.Controls.Add(qaGroup);
+
+        // === Status ===
+        _statusLabel = new Label { Text = Localization.Get("settings_saved"), ForeColor = Color.Gray, AutoSize = true, Padding = new Padding(0, 4, 0, 8) };
+        layout.Controls.Add(_statusLabel);
+
+        scrollPanel.Controls.Add(layout);
+        Controls.Add(scrollPanel);
+    }
+
+    private GroupBox CreateGroupBox(string title)
+    {
+        return new GroupBox
+        {
+            Text = title,
+            Dock = DockStyle.Top,
+            Width = 510,
+            Margin = new Padding(0, 0, 0, 8),
+            Font = new Font("Segoe UI", 9.5f, FontStyle.Bold),
+        };
+    }
+
+    private static Label CreateLabel(string text)
+    {
+        return new Label { Text = text, Anchor = AnchorStyles.Left, AutoSize = true, Padding = new Padding(0, 6, 0, 0) };
+    }
+
+    private static Button CreateButton(string text, Color color)
+    {
+        return new Button
+        {
+            Text = text,
+            Size = new Size(155, 36),
+            BackColor = color,
+            ForeColor = Color.White,
+            FlatStyle = FlatStyle.Flat,
+            Font = new Font("Segoe UI", 9f),
+            Margin = new Padding(2),
+        };
     }
 
     private void ApplyTheme(string theme)
@@ -220,12 +260,9 @@ public class SettingsWindow : Form
                     grid.ColumnHeadersDefaultCellStyle.ForeColor = DarkFg;
                     grid.EnableHeadersVisualStyles = false;
                 }
-                else if (c is Button btn)
+                else if (c is GroupBox gb)
                 {
-                    btn.BackColor = DarkBorder;
-                    btn.ForeColor = DarkFg;
-                    btn.FlatStyle = FlatStyle.Flat;
-                    btn.FlatAppearance.BorderColor = Color.FromArgb(80, 80, 80);
+                    gb.ForeColor = DarkFg;
                 }
                 else if (c is CheckBox cb)
                 {
@@ -258,11 +295,9 @@ public class SettingsWindow : Form
                     grid.ColumnHeadersDefaultCellStyle.ForeColor = SystemColors.WindowText;
                     grid.EnableHeadersVisualStyles = true;
                 }
-                else if (c is Button btn)
+                else if (c is GroupBox gb)
                 {
-                    btn.BackColor = SystemColors.Control;
-                    btn.ForeColor = SystemColors.WindowText;
-                    btn.FlatStyle = FlatStyle.Standard;
+                    gb.ForeColor = SystemColors.WindowText;
                 }
                 else if (c is CheckBox cb)
                 {
@@ -323,6 +358,20 @@ public class SettingsWindow : Form
             _ => 0 // system
         };
 
+        // Hotkey
+        _hotkeyModBox.SelectedIndex = _config.HotkeyModifiers switch
+        {
+            "ctrl_shift" => 0,
+            "ctrl_alt" => 1,
+            "ctrl" => 2,
+            "alt" => 3,
+            "shift" => 4,
+            "none" => 5,
+            _ => 0
+        };
+        var keyIndex = _hotkeyKeyBox.Items.IndexOf(_config.HotkeyKey.ToUpper());
+        _hotkeyKeyBox.SelectedIndex = keyIndex >= 0 ? keyIndex : 0;
+
         // Load Quick Actions into grid
         try
         {
@@ -356,6 +405,19 @@ public class SettingsWindow : Form
             2 => "dark",
             _ => "system"
         };
+
+        // Hotkey
+        _config.HotkeyModifiers = _hotkeyModBox.SelectedIndex switch
+        {
+            0 => "ctrl_shift",
+            1 => "ctrl_alt",
+            2 => "ctrl",
+            3 => "alt",
+            4 => "shift",
+            5 => "none",
+            _ => "ctrl_shift"
+        };
+        _config.HotkeyKey = _hotkeyKeyBox.SelectedItem?.ToString() ?? "H";
 
         _config.Save();
         if (_config.Autostart) Autostart.Enable(); else Autostart.Disable();

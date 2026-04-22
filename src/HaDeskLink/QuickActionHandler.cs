@@ -17,19 +17,24 @@ using System.Windows.Forms;
 namespace HaDeskLink;
 
 /// <summary>
-/// Registers a global hotkey (Ctrl+Shift+H by default) to trigger Quick Actions.
+/// Registers a configurable global hotkey to trigger Quick Actions.
+/// Default: Ctrl+Shift+H. Configurable via HotkeyModifiers and HotkeyKey in settings.
 /// </summary>
 public class QuickActionHandler : IDisposable
 {
     private readonly int _hotkeyId;
     private readonly Form _hiddenForm;
     private readonly Action _onHotkey;
+    private readonly string _modifiers;
+    private readonly string _key;
     private bool _registered;
     private bool _disposed;
 
-    public QuickActionHandler(Action onHotkey)
+    public QuickActionHandler(Action onHotkey, string modifiers = "ctrl_shift", string key = "H")
     {
         _onHotkey = onHotkey;
+        _modifiers = modifiers;
+        _key = key;
         _hotkeyId = 0xC000; // Custom hotkey ID
 
         // Create a hidden form to receive WM_HOTKEY messages
@@ -51,10 +56,10 @@ public class QuickActionHandler : IDisposable
     {
         // Create handle without showing
         var handle = _hiddenForm.Handle;
-        
+
         // Install a message filter to catch WM_HOTKEY
         Application.AddMessageFilter(new HotkeyMessageFilter(_hotkeyId, _onHotkey));
-        
+
         RegisterHotkey();
     }
 
@@ -62,8 +67,67 @@ public class QuickActionHandler : IDisposable
     {
         if (_registered) return;
 
-        // MOD_CONTROL = 0x2, MOD_SHIFT = 0x4, KEY_H = 0x48
-        _registered = RegisterHotKey(_hiddenForm.Handle, _hotkeyId, 0x2 | 0x4, 0x48);
+        uint mod = GetModifierFlags(_modifiers);
+        uint vk = GetVirtualKey(_key);
+
+        _registered = RegisterHotKey(_hiddenForm.Handle, _hotkeyId, mod, vk);
+    }
+
+    /// <summary>
+    /// Get the display string for the current hotkey (e.g. "Ctrl+Shift+H").
+    /// </summary>
+    public string GetHotkeyDisplay()
+    {
+        var modStr = _modifiers switch
+        {
+            "ctrl_shift" => "Ctrl+Shift",
+            "ctrl_alt" => "Ctrl+Alt",
+            "ctrl" => "Ctrl",
+            "alt" => "Alt",
+            "shift" => "Shift",
+            "none" => "",
+            _ => "Ctrl+Shift"
+        };
+        return string.IsNullOrEmpty(modStr) ? _key.ToUpper() : $"{modStr}+{_key.ToUpper()}";
+    }
+
+    private static uint GetModifierFlags(string modifiers)
+    {
+        return modifiers switch
+        {
+            "ctrl_shift" => 0x2 | 0x4,  // MOD_CONTROL | MOD_SHIFT
+            "ctrl_alt" => 0x2 | 0x1,     // MOD_CONTROL | MOD_ALT
+            "ctrl" => 0x2,                // MOD_CONTROL
+            "alt" => 0x1,                 // MOD_ALT
+            "shift" => 0x4,               // MOD_SHIFT
+            "none" => 0x0,
+            _ => 0x2 | 0x4               // Default: Ctrl+Shift
+        };
+    }
+
+    private static uint GetVirtualKey(string key)
+    {
+        return key.ToUpper() switch
+        {
+            "A" => 0x41, "B" => 0x42, "C" => 0x43, "D" => 0x44,
+            "E" => 0x45, "F" => 0x46, "G" => 0x47, "H" => 0x48,
+            "I" => 0x49, "J" => 0x4A, "K" => 0x4B, "L" => 0x4C,
+            "M" => 0x4D, "N" => 0x4E, "O" => 0x4F, "P" => 0x50,
+            "Q" => 0x51, "R" => 0x52, "S" => 0x53, "T" => 0x54,
+            "U" => 0x55, "V" => 0x56, "W" => 0x57, "X" => 0x58,
+            "Y" => 0x59, "Z" => 0x5A,
+            "0" => 0x30, "1" => 0x31, "2" => 0x32, "3" => 0x33,
+            "4" => 0x34, "5" => 0x35, "6" => 0x36, "7" => 0x37,
+            "8" => 0x38, "9" => 0x39,
+            "F1" => 0x70, "F2" => 0x71, "F3" => 0x72, "F4" => 0x73,
+            "F5" => 0x74, "F6" => 0x75, "F7" => 0x76, "F8" => 0x77,
+            "F9" => 0x78, "F10" => 0x79, "F11" => 0x7A, "F12" => 0x7B,
+            "SPACE" => 0x20,
+            "ENTER" => 0x0D,
+            "TAB" => 0x09,
+            "ESC" => 0x1B,
+            _ => 0x48  // Default: H
+        };
     }
 
     public void Dispose()
@@ -101,15 +165,14 @@ public class QuickActionHandler : IDisposable
 
         public bool PreFilterMessage(ref Message m)
         {
-            // WM_HOTKEY = 0x0312
             if (m.Msg == 0x0312 && m.WParam.ToInt32() == _id)
             {
-                // Debounce: ignore if triggered within last 500ms
-                if ((DateTime.Now - _lastTrigger).TotalMilliseconds < 500) return true;
-                _lastTrigger = DateTime.Now;
-                
+                // Debounce: ignore if triggered within 300ms
+                if ((DateTime.UtcNow - _lastTrigger).TotalMilliseconds < 300)
+                    return true;
+                _lastTrigger = DateTime.UtcNow;
                 _callback.Invoke();
-                return true; // Handled
+                return true;
             }
             return false;
         }

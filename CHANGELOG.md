@@ -1,6 +1,12 @@
 # Changelog
 
 
+## [v3.0.11] - 2026-04-22
+- ✨ **Neu:** Konfigurierbarer Hotkey für Quick Actions (Modifier + Taste wählbar)
+- 🎨 **Redesign:** Einstellungen neu gestaltet mit GroupBoxes und farbigen Buttons
+- ✨ **Neu:** Entity-Suche im Quick Actions Editor (AutoComplete aus HA)
+- ✨ **Neu:** JSON-Editor für Quick Actions
+
 ## [v3.0.10] - 2026-04-22
 - ✨ **Neu:** JSON-Editor für Quick Actions – direkte Bearbeitung des JSON für Power-User
 

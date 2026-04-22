@@ -53,6 +53,15 @@ public class Config
     /// </summary>
     public string Theme { get; set; } = "system";
     /// <summary>
+    /// Quick Actions hotkey modifiers. Default: Ctrl+Shift
+    /// Values: "ctrl_shift", "ctrl_alt", "ctrl", "alt", "shift", "none"
+    /// </summary>
+    public string HotkeyModifiers { get; set; } = "ctrl_shift";
+    /// <summary>
+    /// Quick Actions hotkey key. Default: H (0x48)
+    /// </summary>
+    public string HotkeyKey { get; set; } = "H";
+    /// <summary>
     /// Encrypted HA token (DPAPI protected). When set, HaToken is cleared.
     /// If empty, HaToken is used (migration from old config).
     /// </summary>

@@ -83,5 +83,11 @@
   "settings_entities_loaded": "Entities loaded",
   "settings_entities_failed": "Failed to load",
   "settings_no_connection": "No HA connection",
-  "settings_edit_json": "JSON 編集"
+  "settings_edit_json": "JSON 編集",
+  "settings_hotkey_modifiers": "ホットキー修飾子:",
+  "settings_hotkey_key": "ホットキー:",
+  "settings_hotkey_none": "なし（無効）",
+  "settings_connection": "接続",
+  "settings_general": "全般",
+  "settings_actions": "アクション"
 }

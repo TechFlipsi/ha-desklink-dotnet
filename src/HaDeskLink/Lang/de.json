@@ -83,5 +83,11 @@
   "settings_entities_loaded": "Entities geladen",
   "settings_entities_failed": "Fehler beim Laden",
   "settings_no_connection": "Keine Verbindung zu HA",
-  "settings_edit_json": "JSON bearbeiten"
+  "settings_edit_json": "JSON bearbeiten",
+  "settings_hotkey_modifiers": "Hotkey-Modifikator:",
+  "settings_hotkey_key": "Hotkey-Taste:",
+  "settings_hotkey_none": "Keine (deaktiviert)",
+  "settings_connection": "Verbindung",
+  "settings_general": "Allgemein",
+  "settings_actions": "Aktionen"
 }

@@ -83,5 +83,11 @@
   "settings_entities_loaded": "Entities loaded",
   "settings_entities_failed": "Failed to load",
   "settings_no_connection": "No HA connection",
-  "settings_edit_json": "Editar JSON"
+  "settings_edit_json": "Editar JSON",
+  "settings_hotkey_modifiers": "Modificador del hotkey:",
+  "settings_hotkey_key": "Tecla del hotkey:",
+  "settings_hotkey_none": "Ninguno (desactivado)",
+  "settings_connection": "Conexión",
+  "settings_general": "General",
+  "settings_actions": "Acciones"
 }

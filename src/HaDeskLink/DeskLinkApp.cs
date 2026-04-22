@@ -150,7 +150,8 @@ public class DeskLinkApp
             if (quickActions.Count > 0)
             {
                 _quickActionHandler = new QuickActionHandler(() =>
-                    QuickActionWindow.ShowActions(quickActions, _api));
+                    QuickActionWindow.ShowActions(quickActions, _api),
+                    _config.HotkeyModifiers, _config.HotkeyKey);
                 _quickActionHandler.Start();
             }
         }

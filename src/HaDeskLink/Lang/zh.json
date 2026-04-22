@@ -83,5 +83,11 @@
   "settings_entities_loaded": "Entities loaded",
   "settings_entities_failed": "Failed to load",
   "settings_no_connection": "No HA connection",
-  "settings_edit_json": "编辑 JSON"
+  "settings_edit_json": "编辑 JSON",
+  "settings_hotkey_modifiers": "快捷键修饰符:",
+  "settings_hotkey_key": "快捷键:",
+  "settings_hotkey_none": "无（禁用）",
+  "settings_connection": "连接",
+  "settings_general": "常规",
+  "settings_actions": "操作"
 }
