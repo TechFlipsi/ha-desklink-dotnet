@@ -67,6 +67,14 @@ public class DeskLinkApp
         // Setup tray FIRST (needed for notifications)
         SetupTray();
 
+        // Check if token is available (encryption/migration may fail)
+        if (string.IsNullOrEmpty(_config.HaToken))
+        {
+            _trayIcon?.ShowBalloonTip(10000, "HA DeskLink – Fehler",
+                "Token konnte nicht geladen werden. Bitte App neu einrichten.", ToolTipIcon.Error);
+            return;
+        }
+
         // Start WebSocket connection for push notifications
         var webhookId = _api.GetWebhookId();
         var wsClient = new HaWebSocketClient(_config.HaUrl, _config.HaToken, webhookId, _trayIcon,

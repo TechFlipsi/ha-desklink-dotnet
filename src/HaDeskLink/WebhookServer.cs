@@ -55,14 +55,17 @@ public class WebhookServer : IDisposable
 
     private void Listen()
     {
-        while (!_cts.Token.IsCancellationRequested)
+        while (true)
         {
             try
             {
+                if (_cts.IsCancellationRequested) break;
                 var context = _listener.GetContext();
                 ProcessRequest(context);
             }
-            catch (HttpListenerException) when (_cts.Token.IsCancellationRequested) { break; }
+            catch (HttpListenerException) when (_cts.IsCancellationRequested) { break; }
+            catch (ObjectDisposedException) { break; }
+            catch (OperationCanceledException) { break; }
             catch { }
         }
     }

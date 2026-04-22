@@ -117,7 +117,10 @@ public class Config
         else if (!string.IsNullOrEmpty(config.HaTokenEncrypted))
         {
             // Decrypt the token for use in the app
-            config.HaToken = DecryptString(config.HaTokenEncrypted);
+            var decrypted = DecryptString(config.HaTokenEncrypted);
+            if (!string.IsNullOrEmpty(decrypted))
+                config.HaToken = decrypted;
+            // If decryption fails, HaToken remains empty – app will show error
         }
 
         return config;
