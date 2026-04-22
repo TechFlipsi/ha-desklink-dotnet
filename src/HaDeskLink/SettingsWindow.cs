@@ -543,7 +543,7 @@ public class SettingsWindow : Form
             Font = new Font("Consolas", 10),
             Text = json
         };
-        dialog.Controls.Add(jsonBox, 0);
+        dialog.Controls.Add(jsonBox);
 
         // Apply theme to dialog
         bool dark = _config.Theme == "dark" || (_config.Theme == "system" && IsSystemDark());
@@ -583,7 +583,7 @@ public class SettingsWindow : Form
             }
         };
         btnPanel.Controls.Add(applyBtn);
-        dialog.Controls.Add(btnPanel, 1);
+        dialog.Controls.Add(btnPanel);
         dialog.ShowDialog(this);
     }
 
