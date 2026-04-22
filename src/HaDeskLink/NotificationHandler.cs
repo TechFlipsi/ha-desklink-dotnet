@@ -20,17 +20,11 @@ namespace HaDeskLink;
 /// <summary>
 /// Handles notifications and commands from Home Assistant.
 /// Supports actionable notifications with buttons via Windows Toast.
-/// HA sends via mobile_app webhook:
-/// - Notifications: { type: "handle_webhook", data: { title, message } }
-/// - Commands: { type: "handle_webhook", data: { title, message, command: "shutdown" } }
-/// - Actionable: { data: { actions: [{ action, title }], command_on_action: "..." } }
 /// </summary>
 public static class NotificationHandler
 {
-    /// <summary>
-    /// Parse a notification/command webhook from HA and handle it.
-    /// Returns true if this was a valid HA notification/command.
-    /// </summary>
+    private static bool _toastActivatedRegistered = false;
+
     public static bool TryHandleNotification(string jsonBody, NotifyIcon? trayIcon)
     {
         try
@@ -44,7 +38,6 @@ public static class NotificationHandler
             List<NotificationAction>? actions = null;
             string? commandOnAction = null;
 
-            // Format 1: direct data at root level
             if (root.TryGetProperty("title", out var t1))
                 title = t1.GetString() ?? title;
             if (root.TryGetProperty("message", out var m1))
@@ -52,7 +45,6 @@ public static class NotificationHandler
             if (root.TryGetProperty("command", out var c1))
                 command = c1.GetString();
 
-            // Format 2: data nested under "data"
             if (root.TryGetProperty("data", out var data))
             {
                 if (data.TryGetProperty("title", out var t2))
@@ -76,14 +68,12 @@ public static class NotificationHandler
                 }
             }
 
-            // If there's a command, execute it
             if (!string.IsNullOrEmpty(command))
             {
                 try { CommandHandler.Execute(command!); }
                 catch { }
             }
 
-            // Show notification if there's a message
             if (!string.IsNullOrEmpty(message))
             {
                 if (actions != null && actions.Count > 0)
@@ -114,10 +104,6 @@ public static class NotificationHandler
         }
     }
 
-    /// <summary>
-    /// Show an actionable notification with buttons using Windows Toast Notifications.
-    /// Falls back to balloon tip if Toast API fails.
-    /// </summary>
     public static void ShowActionableNotification(string title, string message,
         List<NotificationAction> actions, string? commandOnAction, NotifyIcon? trayIcon)
     {
@@ -135,36 +121,29 @@ public static class NotificationHandler
                     .AddArgument("command", action.Command ?? commandOnAction ?? ""));
             }
 
-            builder.Show();
-
-            ToastNotificationManagerCompat.OnActivated += onActivated =>
+            // Register activation handler once
+            if (!_toastActivatedRegistered)
             {
-                var args = onActivated.Argument;
-                if (!string.IsNullOrEmpty(args))
+                ToastNotificationManagerCompat.OnActivated += args =>
                 {
-                    var parts = args.Split(';');
-                    string? cmd = null;
-                    foreach (var part in parts)
-                    {
-                        if (part.StartsWith("command="))
-                            cmd = part.Substring("command=".Length);
-                    }
-                    if (!string.IsNullOrEmpty(cmd))
+                    if (args.Arguments.TryGetValue("command", out var cmd) && !string.IsNullOrEmpty(cmd))
                     {
                         try { CommandHandler.Execute(cmd); }
                         catch { }
                     }
-                }
-            };
+                };
+                _toastActivatedRegistered = true;
+            }
 
-            return; // Toast shown successfully
+            builder.Show();
+            return;
         }
         catch
         {
-            // Fallback to balloon tip
+            // Fallback to WinForms dialog
         }
 
-        // Fallback: show balloon tip + message box with buttons
+        // Fallback: show balloon tip + dialog with action buttons
         if (trayIcon != null)
         {
             trayIcon.BalloonTipTitle = title;
@@ -173,7 +152,6 @@ public static class NotificationHandler
             trayIcon.ShowBalloonTip(5000);
         }
 
-        // Show dialog with action buttons
         using var form = new Form
         {
             Text = title,
@@ -209,7 +187,6 @@ public static class NotificationHandler
             };
             btnPanel.Controls.Add(btn);
         }
-        // Add dismiss button
         var dismissBtn = new Button { Text = "✕", Width = 50, Height = 35 };
         dismissBtn.Click += (s, e) => form.Close();
         btnPanel.Controls.Add(dismissBtn);
@@ -218,9 +195,6 @@ public static class NotificationHandler
         form.Show();
     }
 
-    /// <summary>
-    /// Called from HaWebSocketClient when a push notification event has actions.
-    /// </summary>
     public static void ShowWebSocketNotification(string title, string message,
         List<NotificationAction>? actions, string? commandOnAction, NotifyIcon? trayIcon)
     {

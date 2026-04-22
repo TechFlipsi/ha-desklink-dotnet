@@ -27,6 +27,9 @@ static class Program
         Application.EnableVisualStyles();
         Application.SetCompatibleTextRenderingDefault(false);
 
+        // Initialize toast notification support
+        ToastNotificationManagerCompat.Initialize();
+
         // Global exception handler - log errors instead of silent crash
         AppDomain.CurrentDomain.UnhandledException += (s, e) =>
         {
