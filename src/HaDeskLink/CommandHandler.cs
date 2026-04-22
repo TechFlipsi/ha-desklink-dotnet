@@ -24,6 +24,7 @@ public static class CommandHandler
 {
     public static void Execute(string command)
     {
+        System.Diagnostics.Debug.WriteLine($"[HA DeskLink] Command received: {command}");
         switch (command.ToLowerInvariant())
         {
             case "shutdown":

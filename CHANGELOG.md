@@ -1,6 +1,12 @@
 # Changelog
 
 
+## [v3.0.6] - 2026-04-22
+- 🐛 **Bug Fix:** Notification-Parsing – unterstützt jetzt verschachteltes data.data.command Format (HA mobile_app)
+- 🐛 **Bug Fix:** Brightness-Befehl – PowerShell-Fallback wenn WMI nicht funktioniert (Windows)
+- 🐛 **Bug Fix:** fullscreen_app Sensor entfernt (Duplikat) auf Linux + Mac
+- ✨ **Neu:** ha_desklink_version Sensor auf allen 3 Plattformen
+
 ## [v3.0.5] - 2026-04-22
 - ✨ **Neu:** ha_desklink_version Sensor – zeigt die aktuelle App-Version in Home Assistant
 

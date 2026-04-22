@@ -708,10 +708,30 @@ public class SensorManager : IDisposable
         {
             using var searcher = new ManagementObjectSearcher(
                 "SELECT * FROM WmiMonitorBrightness WHERE Active=TRUE");
-            foreach (ManagementObject obj in searcher.Get())
+            var results = searcher.Get();
+            if (results.Count > 0)
             {
-                obj.InvokeMethod("WmiSetBrightness", new object[] { (uint)targetBrightness, 0 });
+                foreach (ManagementObject obj in results)
+                {
+                    obj.InvokeMethod("WmiSetBrightness", new object[] { (uint)targetBrightness, 0 });
+                }
+                return; // Success via WMI
             }
+        }
+        catch { }
+
+        // Fallback: use PowerShell to set brightness (works without admin on most systems)
+        try
+        {
+            var psi = new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = "powershell",
+                Arguments = $"-NoProfile -Command \"(Get-WmiObject -Namespace root/WMI -Class WmiMonitorBrightnessMethods).WmiSetBrightness(1, {targetBrightness})\"",
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+            using var proc = System.Diagnostics.Process.Start(psi);
+            proc?.WaitForExit(5000);
         }
         catch { }
     }
