@@ -56,6 +56,9 @@ HA DeskLink empfängt Befehle über **Benachrichtigungen** – genau wie die Han
 | Lautstärke stumm | `mute` | Schaltet den Ton stumm |
 | Lautstärke lauter | `volume_up` | Erhöht die Lautstärke um 10% |
 | Lautstärke leiser | `volume_down` | Verringert die Lautstärke um 10% |
+| Helligkeit rauf | `brightness_up` | Erhöht die Bildschirmhelligkeit um 10% |
+| Helligkeit runter | `brightness_down` | Verringert die Bildschirmhelligkeit um 10% |
+| Helligkeit setzen | `brightness:50` | Setzt Helligkeit auf bestimmten Wert (0-100) |
 | Monitor an | `monitor_on` | Schaltet den Monitor an (wenn aus) |
 | Monitor aus | `monitor_off` | Schaltet den Monitor aus |
 | Bildschirmfoto | `screenshot` | Macht einen Screenshot und lädt ihn zu HA hoch |
@@ -195,10 +198,13 @@ HA DeskLink erstellt automatisch Sensoren in HA:
 | `sensor.ha_desklink_wifi_ssid` | Verbundenes WiFi-Netzwerk (Name) |
 | `sensor.ha_desklink_wifi_signal` | WiFi-Signalstärke in % |
 | `sensor.ha_desklink_active_window` | Aktives Fenster/Titel |
+| `sensor.ha_desklink_fullscreen` | Vollbild-Modus (on/off) |
+| `sensor.ha_desklink_brightness` | Bildschirmhelligkeit in % |
+| `sensor.ha_desklink_monitor_layout` | Monitor-Layout |
 | `sensor.ha_desklink_network_upload` | Upload-Geschwindigkeit in KB/s |
 | `sensor.ha_desklink_network_download` | Download-Geschwindigkeit in KB/s |
 | `sensor.ha_desklink_fan_*` | Lüfter-Drehzahlen in RPM (CPU, GPU, Mainboard) |
-| `sensor.ha_desklink_webcam_active` | Webcam aktiv (on/off) |
+| `sensor.ha_desklink_version` | Aktuelle HA DeskLink Version |
 
 > 💡 Weitere Laufwerke (D:, E: etc.) werden automatisch erkannt. GPU-Sensoren erscheinen nur wenn eine GPU vorhanden ist.
 
