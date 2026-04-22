@@ -1,6 +1,10 @@
 # Changelog
 
 
+## [v3.0.3] - 2026-04-22
+- 🐛 **Bug Fix:** Fullscreen-Erkennung für Multi-Monitor-Setups verbessert (WorkArea statt Monitor-Rect)
+- 🐛 **Bug Fix:** Webcam-Sensor prüft jetzt WMI-Status-Änderung + Videokonferenz-Prozesse (statt nur Installations-Status)
+
 ## [v3.0.2] - 2026-04-22
 - 🐛 **Bug Fix:** Webcam-Sensor zeigt jetzt korrekt "on/off" (prüft ob Kamera in Benutzung, nicht nur ob installiert)
 - 🐛 **Bug Fix:** Fullscreen-Erkennung verbessert – erkennt jetzt auch Browser mit F11 und maximierte Fenster

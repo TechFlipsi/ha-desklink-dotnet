@@ -620,7 +620,7 @@ public class SensorManager : IDisposable
             GetClassName(hwnd, classBuilder, 256);
             var className = classBuilder.ToString();
 
-            // Check if window is visible and has a title
+            // Empty title = not a user window
             if (string.IsNullOrWhiteSpace(title))
             {
                 return new List<SensorData>
@@ -630,12 +630,17 @@ public class SensorManager : IDisposable
                 };
             }
 
-            // Get window and monitor rects
+            // Get window rect
             GetWindowRect(hwnd, out var windowRect);
+
+            // Get the monitor the window is on
             var monitor = MonitorFromWindow(hwnd, 2 /* MONITOR_DEFAULTTONEAREST */);
             var monitorInfo = new MONITORINFO();
             monitorInfo.Size = System.Runtime.InteropServices.Marshal.SizeOf(typeof(MONITORINFO));
             GetMonitorInfo(monitor, ref monitorInfo);
+
+            // Use WorkArea (excludes taskbar) for fullscreen detection
+            var workArea = monitorInfo.WorkArea;
             var screen = monitorInfo.Monitor;
 
             // Get window style
@@ -644,17 +649,31 @@ public class SensorManager : IDisposable
 
             var windowWidth = windowRect.Right - windowRect.Left;
             var windowHeight = windowRect.Bottom - windowRect.Top;
-            var screenWidth = screen.Right - screen.Left;
-            var screenHeight = screen.Bottom - screen.Top;
+            var workWidth = workArea.Right - workArea.Left;
+            var workHeight = workArea.Bottom - workArea.Top;
+            var screenW = screen.Right - screen.Left;
+            var screenH = screen.Bottom - screen.Top;
 
-            // Fullscreen = window covers entire screen (with small tolerance)
-            // Catches: true fullscreen (F11), borderless, maximized browser, etc.
-            var coversScreen = windowRect.Left <= screen.Left + 5 &&
-                               windowRect.Top <= screen.Top + 5 &&
-                               windowWidth >= screenWidth - 10 &&
-                               windowHeight >= screenHeight - 10;
+            // Fullscreen detection:
+            // 1. Borderless window that covers the entire screen (F11 browser, games)
+            // 2. Window that covers the full work area (maximized)
+            // 3. Window that extends beyond work area (true fullscreen over taskbar)
+            bool coversWorkArea = windowRect.Left <= workArea.Left + 5 &&
+                                 windowRect.Top <= workArea.Top + 5 &&
+                                 windowWidth >= workWidth - 10 &&
+                                 windowHeight >= workHeight - 10;
 
-            var fullscreen = coversScreen && (isBorderless || windowWidth >= screenWidth - 5);
+            bool coversEntireScreen = windowRect.Left <= screen.Left + 2 &&
+                                      windowRect.Top <= screen.Top + 2 &&
+                                      windowWidth >= screenW - 5 &&
+                                      windowHeight >= screenH - 5;
+
+            // True fullscreen: borderless OR covers entire screen including taskbar
+            var fullscreen = isBorderless || coversEntireScreen;
+
+            // Also treat maximized windows covering work area as fullscreen
+            if (!fullscreen && coversWorkArea)
+                fullscreen = true;
 
             var appName = fullscreen ? (string.IsNullOrWhiteSpace(title) ? className : title) : "none";
             var state = fullscreen ? "on" : "off";
@@ -751,32 +770,11 @@ public class SensorManager : IDisposable
             }
             if (!webcamPresent) return null;
 
-            // Check if any process is using the webcam
-            // On Windows, when a process uses the camera, the device shows status 'Error'
-            // or a specific camera process is running
+            // Check if webcam is currently in use:
+            // Method 1: WMI – when a camera is in use, its Status changes from "OK" to "Error" or "Degraded"
+            // Method 2: Check for processes known to use webcams
             bool inUse = false;
-            try
-            {
-                // Check common video-conferencing processes that indicate camera use
-                var cameraProcessNames = new[] { "zoom", "teams", "skype", "obs64", "obs32", 
-                    "WebexHost", "BlueJeans", "viber", "FaceTime", "Camera" };
-                foreach (var proc in System.Diagnostics.Process.GetProcesses())
-                {
-                    try
-                    {
-                        var name = proc.ProcessName.ToLowerInvariant();
-                        if (cameraProcessNames.Any(n => name.Contains(n)))
-                        {
-                            inUse = true;
-                            break;
-                        }
-                    }
-                    catch { }
-                }
-            }
-            catch { }
 
-            // Also check WMI – when camera is in use, status changes from OK to Error/Busy
             try
             {
                 using var statusSearcher = new ManagementObjectSearcher(
@@ -784,7 +782,8 @@ public class SensorManager : IDisposable
                 foreach (var obj in statusSearcher.Get())
                 {
                     var status = obj["Status"]?.ToString() ?? "";
-                    if (status != "OK")
+                    // When camera is in use by an app, WMI status changes from OK
+                    if (status != "OK" && !string.IsNullOrEmpty(status))
                     {
                         inUse = true;
                         break;
@@ -792,6 +791,34 @@ public class SensorManager : IDisposable
                 }
             }
             catch { }
+
+            // Method 2: Check for common video-conferencing / camera apps
+            if (!inUse)
+            {
+                try
+                {
+                    var cameraProcesses = new[] { "zoom", "teams", "skype", "obs64", "obs32",
+                        "WebexHost", "viber", "Camera", "Microsoft.Camera" };
+                    foreach (var proc in System.Diagnostics.Process.GetProcesses())
+                    {
+                        try
+                        {
+                            var name = proc.ProcessName.ToLowerInvariant();
+                            foreach (var cp in cameraProcesses)
+                            {
+                                if (name.Contains(cp.ToLowerInvariant()))
+                                {
+                                    inUse = true;
+                                    break;
+                                }
+                            }
+                            if (inUse) break;
+                        }
+                        catch { }
+                    }
+                }
+                catch { }
+            }
 
             return new SensorData("webcam_active", Localization.Get("webcam_active", "Webcam Active"),
                 inUse ? "on" : "off", icon: "mdi:webcam", stateClass: "measurement");
