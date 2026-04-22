@@ -179,11 +179,14 @@ public class SettingsWindow : Form
         panel.Controls.Add(_qaGrid, 0, 13);
         panel.SetColumnSpan(_qaGrid, 2);
 
-        // Row 14: Buttons row (load entities + save)
+        // Row 14: Buttons row (load entities + JSON edit + save)
         var qaBtnPanel = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight, AutoSize = true };
-        var loadEntitiesBtn = new Button { Text = Localization.Get("settings_load_entities"), Size = new Size(160, 35) };
+        var loadEntitiesBtn = new Button { Text = Localization.Get("settings_load_entities"), Size = new Size(140, 35) };
         loadEntitiesBtn.Click += OnLoadEntities;
         qaBtnPanel.Controls.Add(loadEntitiesBtn);
+        var jsonEditBtn = new Button { Text = Localization.Get("settings_edit_json"), Size = new Size(120, 35) };
+        jsonEditBtn.Click += OnEditJson;
+        qaBtnPanel.Controls.Add(jsonEditBtn);
         var saveQaBtn = new Button { Text = Localization.Get("settings_save_quickactions"), Size = new Size(180, 35) };
         saveQaBtn.Click += OnSaveQuickActions;
         qaBtnPanel.Controls.Add(saveQaBtn);
@@ -445,6 +448,81 @@ public class SettingsWindow : Form
         _config.QuickActions = JsonSerializer.Serialize(actions);
         _config.Save();
         _statusLabel.Text = Localization.Get("settings_quickactions_saved");
+    }
+
+    private void OnEditJson(object? sender, EventArgs e)
+    {
+        // Build current JSON from grid
+        var actions = new List<QuickAction>();
+        foreach (DataGridViewRow row in _qaGrid.Rows)
+        {
+            if (row.IsNewRow) continue;
+            var entityId = row.Cells[0].Value?.ToString()?.Trim() ?? "";
+            var name = row.Cells[1].Value?.ToString()?.Trim() ?? "";
+            if (!string.IsNullOrEmpty(entityId) && !string.IsNullOrEmpty(name))
+                actions.Add(new QuickAction(entityId, name));
+        }
+        var json = JsonSerializer.Serialize(actions, new JsonSerializerOptions { WriteIndented = true });
+
+        // Show JSON editor dialog
+        var dialog = new Form
+        {
+            Text = "Quick Actions JSON",
+            Size = new Size(500, 400),
+            StartPosition = FormStartPosition.CenterParent,
+            MinimizeBox = false,
+            MaximizeBox = false
+        };
+        var jsonBox = new TextBox
+        {
+            Dock = DockStyle.Fill,
+            Multiline = true,
+            ScrollBars = ScrollBars.Vertical,
+            Font = new Font("Consolas", 10),
+            Text = json
+        };
+        dialog.Controls.Add(jsonBox, 0);
+
+        // Apply theme to dialog
+        bool dark = _config.Theme == "dark" || (_config.Theme == "system" && IsSystemDark());
+        if (dark)
+        {
+            dialog.BackColor = DarkBg;
+            jsonBox.BackColor = DarkInput;
+            jsonBox.ForeColor = DarkFg;
+        }
+
+        var btnPanel = new FlowLayoutPanel { Dock = DockStyle.Bottom, FlowDirection = FlowDirection.RightToLeft, Height = 45 };
+        var cancelBtn = new Button { Text = Localization.Get("settings_cancel"), Size = new Size(80, 35) };
+        cancelBtn.Click += (s, ev) => dialog.Close();
+        btnPanel.Controls.Add(cancelBtn);
+        var applyBtn = new Button { Text = Localization.Get("settings_save"), Size = new Size(80, 35) };
+        applyBtn.Click += (s, ev) =>
+        {
+            try
+            {
+                var parsed = JsonSerializer.Deserialize<List<QuickAction>>(jsonBox.Text);
+                if (parsed != null)
+                {
+                    // Update grid from JSON
+                    _qaGrid.Rows.Clear();
+                    foreach (var action in parsed)
+                    {
+                        if (!string.IsNullOrEmpty(action.EntityId) && !string.IsNullOrEmpty(action.Name))
+                            _qaGrid.Rows.Add(action.EntityId, action.Name);
+                    }
+                    _statusLabel.Text = Localization.Get("settings_quickactions_saved");
+                    dialog.Close();
+                }
+            }
+            catch (JsonException ex)
+            {
+                MessageBox.Show($"JSON Error: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        };
+        btnPanel.Controls.Add(applyBtn);
+        dialog.Controls.Add(btnPanel, 1);
+        dialog.ShowDialog(this);
     }
 
     private static SettingsWindow? _instance;

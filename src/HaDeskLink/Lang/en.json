@@ -82,5 +82,6 @@
   "settings_loading_entities": "Loading entities...",
   "settings_entities_loaded": "Entities loaded",
   "settings_entities_failed": "Failed to load",
-  "settings_no_connection": "No HA connection"
+  "settings_no_connection": "No HA connection",
+  "settings_edit_json": "Edit JSON"
 }

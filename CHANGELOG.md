@@ -1,6 +1,9 @@
 # Changelog
 
 
+## [v3.0.10] - 2026-04-22
+- ✨ **Neu:** JSON-Editor für Quick Actions – direkte Bearbeitung des JSON für Power-User
+
 ## [v3.0.9] - 2026-04-22
 - ✨ **Neu:** Entity-Suche im Quick Actions Editor – Entities direkt aus HA laden und per AutoComplete auswählen
 
