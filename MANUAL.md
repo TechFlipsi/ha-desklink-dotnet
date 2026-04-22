@@ -313,6 +313,32 @@ Sensor `sensor.ha_desklink_webcam_active` – `on` wenn Kamera aktiv, `off` wenn
 | CPU-Temperatur leer (Win) | Als Administrator starten |
 | Webcam immer "off" | Kamera vorhanden? Linux: `ls /dev/video*` |
 | SSL-Fehler | SSL-Prüfung in Einstellungen deaktivieren |
+| **Windows Defender: VulnerableDriver** | Siehe unten ⚠️ |
+
+### ⚠️ Windows Defender – „Vulnerable Driver: WinNT/Winring0"
+
+Windows Defender meldet möglicherweise **VulnerableDriver:WinNT/Winring0** für die Datei `HA_DeskLink.sys`.
+
+**Das ist ein Fehlalarm!** Die Erklärung:
+
+- HA DeskLink nutzt **LibreHardwareMonitorLib** für Hardware-Sensoren (CPU-Temperatur, GPU-Temperatur, Lüfter-Drehzahl)
+- Diese Bibliothek verwendet den **WinRing0-Treiber**, um Hardware-Sensoren auf Kernel-Ebene auszulesen
+- WinRing0 ist ein **legitimer, Open-Source-Treiber** – er braucht Kernel-Zugriff, um Temperatursensoren zu lesen
+- Microsoft Defender flagt alle Kernel-Treiber als „potenziell gefährlich", auch wenn sie harmlos sind
+
+**So lässt du den Treiber zu:**
+
+1. Windows Defender öffnen → **Schutzverlauf**
+2. Den Eintrag „VulnerableDriver:WinNT/Winring0" suchen
+3. Auf **Aktionen** → **Zulassen** klicken
+
+Oder alternativ:
+
+1. Windows-Einstellungen → **Datenschutz & Sicherheit** → **Windows-Sicherheit**
+2. **Viren- & Bedrohungsschutz** → **Schutzverlauf**
+3. Den Treiber-Eintrag → **Zulassen**
+
+**Ohne Admin-Rechte** funktioniert HA DeskLink auch – dann fehlen nur CPU/GPU-Temperatur und Lüfter-Drehzahl. Alle anderen Sensoren und Befehle funktionieren normal.
 
 ---
 
@@ -666,6 +692,35 @@ Sensor `sensor.ha_desklink_webcam_active` – `on` when camera is active, `off` 
 |---|---|
 | Can't connect | Check HA URL, token, firewall port 8123 |
 | Sensors missing in HA | Wait 30-60s, open device in HA, restart |
+| CPU temp empty (Win) | Run as Administrator |
+| Webcam always "off" | Camera present? Linux: `ls /dev/video*` |
+| SSL error | Disable SSL verification in settings |
+| **Windows Defender: VulnerableDriver** | See below ⚠️ |
+
+### ⚠️ Windows Defender – "Vulnerable Driver: WinNT/Winring0"
+
+Windows Defender may report **VulnerableDriver:WinNT/Winring0** for the file `HA_DeskLink.sys`.
+
+**This is a false positive!** Here's why:
+
+- HA DeskLink uses **LibreHardwareMonitorLib** for hardware sensors (CPU temp, GPU temp, fan speed)
+- This library uses the **WinRing0 driver** to read hardware sensors at kernel level
+- WinRing0 is a **legitimate, open-source driver** – it needs kernel access to read temperature sensors
+- Microsoft Defender flags all kernel drivers as "potentially dangerous", even when they're harmless
+
+**How to allow the driver:**
+
+1. Open Windows Defender → **Protection history**
+2. Find the entry "VulnerableDriver:WinNT/Winring0"
+3. Click **Actions** → **Allow**
+
+Or alternatively:
+
+1. Windows Settings → **Privacy & Security** → **Windows Security**
+2. **Virus & threat protection** → **Protection history**
+3. Find the driver entry → **Allow**
+
+**Without admin rights** HA DeskLink still works – you'll just miss CPU/GPU temperature and fan speed. All other sensors and commands work normally.
 | CPU temp empty (Win) | Run as Administrator |
 | Webcam always "off" | Camera present? Linux: `ls /dev/video*` |
 | SSL error | Disable SSL verification in settings |

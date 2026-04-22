@@ -33,6 +33,8 @@ Geschrieben in **C# / .NET 8** mit LibreHardwareMonitorLib für echte Hardware-S
 - Windows 10/11 (x64)
 - Kein .NET Runtime nötig – alles im Installer enthalten
 
+> ⚠️ **Windows Defender-Hinweis:** Windows Defender meldet möglicherweise „Vulnerable Driver: WinNT/Winring0" für `HA_DeskLink.sys`. Das ist ein **Fehlalarm** – der WinRing0-Treiber wird von LibreHardwareMonitorLib für CPU/GPU-Temperatur benötigt. Siehe [Betriebsanleitung](MANUAL.md#windows-defender--vulnerable-driver-winntwinring0) für Details zum Zulassen.
+
 ## Installation
 1. Neueste `HA_DeskLink_Setup_x.x.x.exe` von [Releases](https://github.com/FKirchweger/ha-desklink-dotnet/releases/latest) herunterladen
 2. Die `HA_DeskLink_Setup_x.x.x.exe` herunterladen, dann im Download-Ordner **Rechtsklick → „Als Administrator ausführen“** wählen. ⚠️ Ein normaler Doppelklick oder das Warten auf die UAC-Anfrage führt zu einer Fehlermeldung – bitte direkt per Rechtsklick als Administrator starten.
