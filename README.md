@@ -1,4 +1,4 @@
-# HA DeskLink v2.2
+# HA DeskLink v3.0
 
 [![Build](https://img.shields.io/github/actions/workflow/status/TechFlipsi/ha-desklink-dotnet/build.yml?branch=main&label=Build)](https://github.com/TechFlipsi/ha-desklink-dotnet/actions)
 [![Version](https://img.shields.io/github/v/release/TechFlipsi/ha-desklink-dotnet?label=Version)](https://github.com/TechFlipsi/ha-desklink-dotnet/releases/latest)
@@ -16,6 +16,10 @@ Geschrieben in **C# / .NET 8** mit LibreHardwareMonitorLib für echte Hardware-S
 - 🖥️ **Eingebettetes Dashboard** – WebView2 (mit Auto-Install falls fehlend)
 - ⚡ **PC-Befehle aus HA** – Shutdown, Restart, Hibernate, Lock, und mehr per Benachrichtigung
 - 📬 **Benachrichtigungen** – HA sendet Toast-Notifications an den PC
+- 🔔 **Actionable Notifications** – Benachrichtigungen mit Aktions-Buttons
+- ⚡ **Quick Actions** – Globaler Hotkey (Ctrl+Shift+H) für HA-Entity-Toggles
+- 📸 **Screenshot** – Echtes Bildschirmfoto + Upload als HA-Event
+- 📷 **Webcam-Sensor** – Zeigt ob Webcam aktiv ist (on/off)
 - 🔌 **mobile_app Protokoll** – identisch zur Handy-App, keine Extra-Konfiguration in HA nötig
 - 🔄 **Auto-Update** von GitHub Releases
 - 📌 **System Tray** – läuft minimiert im Hintergrund
@@ -48,12 +52,30 @@ HA DeskLink empfängt Befehle über **Benachrichtigungen** – genau wie die Han
 | Lautstärke leiser | `volume_down` | Verringert die Lautstärke um 10% |
 | Monitor an | `monitor_on` | Schaltet den Monitor an (wenn aus) |
 | Monitor aus | `monitor_off` | Schaltet den Monitor aus |
-| Bildschirmfoto | `screenshot` | Macht einen Screenshot |
+| Bildschirmfoto | `screenshot` | Macht einen Screenshot und lädt ihn zu HA hoch |
+| Bildschirmfoto speichern | `screenshot_save` | Macht einen Screenshot, speichert lokal und lädt zu HA hoch |
+| Snipping Tool | `snipping_tool` | Öffnet das Windows Snipping Tool |
 | Nachricht | *(kein command)* | Zeigt nur eine Benachrichtigung an |
 
 > ⚠️ `mute`, `volume_up`, `volume_down`, `monitor_on`, `monitor_off` und `screenshot` sind ab v2.1.0 verfügbar!
 
 ### Beispiele
+
+#### Actionable Notification (v3.0+)
+```yaml
+service: notify.mobile_app_ha_desklink
+data:
+  title: "PC herunterfahren?"
+  message: "Der PC wird in 30 Sekunden heruntergefahren"
+  data:
+    actions:
+      - action: SHUTDOWN
+        title: "Ausschalten"
+        command: shutdown
+      - action: CANCEL
+        title: "Abbrechen"
+    command_on_action: shutdown
+```
 
 #### Herunterfahren
 ```yaml
@@ -170,6 +192,7 @@ HA DeskLink erstellt automatisch Sensoren in HA:
 | `sensor.ha_desklink_network_upload` | Upload-Geschwindigkeit in KB/s |
 | `sensor.ha_desklink_network_download` | Download-Geschwindigkeit in KB/s |
 | `sensor.ha_desklink_fan_*` | Lüfter-Drehzahlen in RPM (CPU, GPU, Mainboard) |
+| `sensor.ha_desklink_webcam_active` | Webcam aktiv (on/off) |
 
 > 💡 Weitere Laufwerke (D:, E: etc.) werden automatisch erkannt. GPU-Sensoren erscheinen nur wenn eine GPU vorhanden ist.
 
@@ -211,16 +234,6 @@ GPL v3 – Copyright © 2026 Fabian Kirchweger
 This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License v3.
 
 **Important:** If you modify or distribute this software, you MUST release your changes under the same GPL v3 license. Closed-source or proprietary use is NOT permitted.
-
-## 📐 Versionierung
-Ab v2.2.1 gelten **plattformunabhängige Versionsnummern**:
-
-| Änderung | Beispiel | Erklärung |
-|---|---|---|
-| **Bug Fix** | 2.2.1 → 2.2.2 | Fehlerbehebung, nur betroffene Plattform |
-| **Neue Funktionen** | 2.2.x → 3.0.0 | Neue Features, alle Plattformen gleichzeitig |
-
-Jede Plattform (Windows, Linux, macOS) hat **eigene Versionsnummern**. Ein Bug-Fix unter Linux ändert nicht die Windows-Version – und umgekehrt. Große Funktionsupdates (Major) bekommen alle Plattformen gleichzeitig.
 
 ## macOS-Version
 Es gibt jetzt eine macOS-Version von HA DeskLink! 🎉 Siehe [ha-desklink-mac](https://github.com/TechFlipsi/ha-desklink-mac) – ⚠️ Community Test Version, nicht vom Entwickler getestet.
