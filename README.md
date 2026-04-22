@@ -8,6 +8,10 @@
 
 **Windows Companion App für Home Assistant** – nativ, schnell, zuverlässig.
 
+📖 **[Betriebsanleitung / Manual](MANUAL.md)** – Installation, Sensoren, Befehle, Quick Actions, Actionable Notifications, Screenshot, Webcam, Plattform-Vergleich & mehr (DE + EN)
+
+📊 **[HASS.Agent vs. HA DeskLink](COMPARISON.md)** – Features, Architektur & Migration im Vergleich (DE + EN)
+
 Geschrieben in **C# / .NET 8** mit LibreHardwareMonitorLib für echte Hardware-Sensoren.
 
 ## Features

@@ -1,53 +1,123 @@
 # HA DeskLink – Betriebsanleitung / User Manual
 
-📝 **Sprache / Language:** [Deutsch → Seite 1](#deutsch) | [English → Page 6](#english)
+📝 **Sprache / Language:** [Deutsch → unten](#deutsch) | [English → below](#english)
 
 ---
 
 <a id="deutsch"></a>
 
-# Deutsch
+# 🇩🇪 Deutsch
 
 ## Inhaltsverzeichnis
 
-1. [Installation](#installation)
-2. [Ersteinrichtung](#ersteinrichtung)
-3. [Sensoren](#sensoren)
-4. [Befehle aus Home Assistant](#befehle-aus-home-assistant)
-5. [Actionable Notifications](#actionable-notifications)
-6. [Quick Actions](#quick-actions)
-7. [Screenshot-Funktion](#screenshot-funktion)
-8. [Webcam-Sensor](#webcam-sensor)
-9. [Einstellungen](#einstellungen)
-10. [System Tray & Hintergrundbetrieb](#system-tray--hintergrundbetrieb)
-11. [Auto-Update](#auto-update)
-12. [Problembehebung](#problembehebung)
-13. [Plattform-Vergleich](#plattform-vergleich)
+1. [HASS.Agent vs. HA DeskLink – Vergleich](#hassagent-vs-ha-desklink--vergleich)
+   - [Warum HA DeskLink?](#warum-ha-desklink)
+   - [Funktionen im Vergleich](#funktionen-im-vergleich)
+   - [Architektur](#architektur)
+   - [Was HA DeskLink NICHT kann](#was-ha-desklink-nicht-kann)
+   - [Migration von HASS.Agent](#migration-von-hassagent)
+2. [Installation](#installation)
+3. [Ersteinrichtung](#ersteinrichtung)
+4. [Sensoren](#sensoren)
+5. [Befehle aus Home Assistant](#befehle-aus-home-assistant)
+6. [Actionable Notifications](#actionable-notifications)
+7. [Quick Actions](#quick-actions)
+8. [Screenshot-Funktion](#screenshot-funktion)
+9. [Webcam-Sensor](#webcam-sensor)
+10. [Einstellungen](#einstellungen)
+11. [System Tray & Hintergrundbetrieb](#system-tray--hintergrundbetrieb)
+12. [Auto-Update](#auto-update)
+13. [Problembehebung](#problembehebung)
+14. [Plattform-Vergleich (Windows / Linux / macOS)](#plattform-vergleich-windows--linux--macos)
 
 ---
 
-### Installation
+## HASS.Agent vs. HA DeskLink – Vergleich
 
-**Windows:**
+### Warum HA DeskLink?
+
+HASS.Agent ist ein großartiges Projekt – aber es erfordert **MQTT** und eine **separate Integration** in Home Assistant. HA DeskLink geht einen anderen Weg: Es nutzt das **mobile_app-Protokoll**, das auch die offizielle Handy-App verwendet. Das bedeutet: **Keine Extra-Integration, kein MQTT-Broker nötig.** Einfach installieren, Token eingeben, fertig.
+
+### Funktionen im Vergleich
+
+| Funktion | HASS.Agent | HA DeskLink | Hinweis |
+|---|:---:|:---:|---|
+| **Verbindung** | MQTT | WebSocket (mobile_app) | Kein MQTT-Broker nötig |
+| **Integration in HA** | Eigene HACS-Integration nötig | Automatisch (mobile_app) | Erscheint wie ein Handy in HA |
+| **CPU-Temperatur** | ✅ | ✅ | |
+| **CPU-Auslastung** | ✅ | ✅ | |
+| **RAM** | ✅ | ✅ | |
+| **Festplatte** | ✅ | ✅ | Alle Laufwerke |
+| **Akku** | ✅ | ✅ | |
+| **GPU-Temperatur** | ✅ | ✅ (Win/Linux) | macOS: keine öffentliche API |
+| **GPU-Auslastung** | ✅ | ✅ (Win/Linux) | macOS: nur mit sudo |
+| **Lüfter-Drehzahl** | ✅ | ✅ (Win/Linux) | |
+| **WiFi-SSID** | ✅ | ✅ | |
+| **Uptime** | ✅ | ✅ | |
+| **Aktives Fenster** | ✅ | ✅ (Win) | Linux/macOS: begrenzt |
+| **Webcam-Status** | ❌ | ✅ | v3.0+: Sensor ob Kamera aktiv |
+| **Befehle von HA** | ✅ | ✅ | Shutdown, Restart, Lock, etc. |
+| **Screenshot** | ✅ (Snipping Tool) | ✅ (Echt + Upload) | Direkt als HA-Event |
+| **Benachrichtigungen** | ✅ | ✅ | |
+| **Actionable Notifications** | ✅ | ✅ | v3.0+: Buttons in Notifications |
+| **Quick Actions** | ✅ | ✅ | v3.0+: Hotkey + Popup |
+| **Media Player** | ✅ | ❌ | Nicht geplant – WebSocket-only |
+| **Dashboard eingebettet** | ✅ (WebView) | ✅ (Win: WebView2) | Linux/Mac: Browser |
+| **Auto-Update** | ✅ | ✅ | |
+| **System Tray** | ✅ | ✅ (Win) | Linux: Daemon, Mac: Dock |
+| **Einstellungen** | GUI | GUI (Win) / Config (Linux/Mac) | |
+| **Lokalisierung** | Englisch | 6 Sprachen (de, en, es, fr, zh, ja) | |
+| **macOS** | ❌ | ✅ (Community Test) | |
+| **Linux** | ❌ | ✅ | Headless möglich |
+| **Lizenz** | MIT | GPL v3 | HA DeskLink ist Copyleft |
+
+### Architektur
+
+**HASS.Agent:** `App ←→ MQTT-Broker ←→ HA (+ HACS-Integration)`
+
+**HA DeskLink:** `App ←→ Home Assistant (WebSocket + Webhook)` – keine Extra-Software nötig.
+
+### Was HA DeskLink NICHT kann
+
+| Feature | Warum nicht |
+|---|---|
+| **Media Player** | Würde eigene HA-Integration erfordern. mobile_app bietet keine Media-Player-Entity. |
+| **MQTT** | Bewusst weggelassen. mobile_app ist einfacher. |
+| **WebView auf Linux/macOS** | WebView2 nicht stabil verfügbar. Dashboard öffnet im Browser. |
+
+### Migration von HASS.Agent
+
+1. HA DeskLink installieren
+2. HA-URL + Long-Lived Token eingeben
+3. Gerät registriert sich automatisch in HA
+4. HASS.Agent deinstallieren – alte Entities in HA bleiben bis man sie löscht
+5. Automatisierungen auf `sensor.ha_desklink_*` anpassen
+
+---
+
+## Installation
+
+### Windows
 1. `HA_DeskLink_Setup_x.x.x.exe` von [Releases](https://github.com/TechFlipsi/ha-desklink-dotnet/releases/latest) herunterladen
 2. **Rechtsklick → „Als Administrator ausführen"** ⚠️ Normaler Doppelklick funktioniert nicht!
 3. Einrichtung folgt automatisch
 
-**Linux:**
+### Linux
 1. `ha-desklink-linux-x64.tar.gz` von [Releases](https://github.com/TechFlipsi/ha-desklink-linux/releases/latest) herunterladen
 2. `tar xzf ha-desklink-linux-x64.tar.gz`
 3. `./ha-desklink --setup`
 4. Als Service: `sudo cp ha-desklink.service /etc/systemd/system/ && sudo systemctl enable --now ha-desklink`
 
-**macOS:**
+### macOS
 1. `.dmg` von [Releases](https://github.com/TechFlipsi/ha-desklink-mac/releases/latest) herunterladen
 2. App in Programme-Ordner ziehen
 3. Beim ersten Start: HA URL + Token eingeben
+
 > ⚠️ macOS = Community Test – nicht vom Entwickler getestet
 
 ---
 
-### Ersteinrichtung
+## Ersteinrichtung
 
 Du brauchst:
 1. **HA URL** – z.B. `https://homeassistant.local:8123`
@@ -57,7 +127,7 @@ Token wird verschlüsselt gespeichert (Windows: DPAPI, macOS: Keychain, Linux: c
 
 ---
 
-### Sensoren
+## Sensoren
 
 Alle Sensoren erscheinen als `sensor.ha_desklink_*` in Home Assistant.
 
@@ -89,7 +159,7 @@ Alle Sensoren erscheinen als `sensor.ha_desklink_*` in Home Assistant.
 
 ---
 
-### Befehle aus Home Assistant
+## Befehle aus Home Assistant
 
 Befehle werden über **Benachrichtigungen** gesendet – wie bei der Handy-App.
 
@@ -124,7 +194,7 @@ data:
 
 ---
 
-### Actionable Notifications
+## Actionable Notifications
 
 Ab v3.0: Benachrichtigungen mit **Aktions-Buttons**.
 
@@ -156,7 +226,7 @@ data:
 
 ---
 
-### Quick Actions
+## Quick Actions
 
 Ab v3.0: **HA-Entities per Hotkey/Button umschalten**.
 
@@ -177,7 +247,7 @@ Beim Klick wird `homeassistant.toggle` an HA gesendet.
 
 ---
 
-### Screenshot-Funktion
+## Screenshot-Funktion
 
 | Befehl | Wirkung |
 |---|---|
@@ -192,7 +262,7 @@ Beim Klick wird `homeassistant.toggle` an HA gesendet.
 
 ---
 
-### Webcam-Sensor
+## Webcam-Sensor
 
 Sensor `sensor.ha_desklink_webcam_active` – `on` wenn Kamera aktiv, `off` wenn nicht.
 
@@ -204,7 +274,7 @@ Sensor `sensor.ha_desklink_webcam_active` – `on` wenn Kamera aktiv, `off` wenn
 
 ---
 
-### Einstellungen
+## Einstellungen
 
 | Plattform | Methode |
 |---|---|
@@ -214,7 +284,7 @@ Sensor `sensor.ha_desklink_webcam_active` – `on` wenn Kamera aktiv, `off` wenn
 
 ---
 
-### System Tray & Hintergrundbetrieb
+## System Tray & Hintergrundbetrieb
 
 | Plattform | Verhalten |
 |---|---|
@@ -224,7 +294,7 @@ Sensor `sensor.ha_desklink_webcam_active` – `on` wenn Kamera aktiv, `off` wenn
 
 ---
 
-### Auto-Update
+## Auto-Update
 
 | Plattform | Wann | Methode |
 |---|---|---|
@@ -234,7 +304,7 @@ Sensor `sensor.ha_desklink_webcam_active` – `on` wenn Kamera aktiv, `off` wenn
 
 ---
 
-### Problembehebung
+## Problembehebung
 
 | Problem | Lösung |
 |---|---|
@@ -246,42 +316,115 @@ Sensor `sensor.ha_desklink_webcam_active` – `on` wenn Kamera aktiv, `off` wenn
 
 ---
 
-### Plattform-Vergleich
+## Plattform-Vergleich (Windows / Linux / macOS)
 
 | Feature | Windows | Linux | macOS | Erklärung |
 |---|:---:|:---:|:---:|---|
-| GUI | WinForms | Avalonia | Avalonia | |
-| Embedded Dashboard | ✅ WebView2 | ❌ Browser | ❌ Browser | WebView2 nicht stabil |
-| System Tray | ✅ | ❌ Daemon | ❌ Dock | |
-| Quick Actions Hotkey | ✅ Ctrl+Shift+H | ❌ Button | ❌ Button | Globale Hotkeys nur Win |
-| Screenshot-Methode | CopyFromScreen | gnome-screenshot | screencapture | |
-| Webcam-Erkennung | WMI | /dev/video* | ioreg/lsof | |
-| Token-Speicher | DPAPI | config.json | Keychain | |
-| Admin nötig | Ja (HW-Sensoren) | Nein | Nein | |
-| Daemon-Modus | ❌ | ✅ systemd | ❌ | |
-| Installer | ✅ InnoSetup | tar.gz | DMG | |
+| **GUI** | WinForms | Avalonia | Avalonia | |
+| **Embedded Dashboard** | ✅ WebView2 | ❌ Browser | ❌ Browser | WebView2 nicht stabil auf Linux/Mac |
+| **System Tray** | ✅ | ❌ Daemon | ❌ Dock | |
+| **Quick Actions Hotkey** | ✅ Ctrl+Shift+H | ❌ Button | ❌ Button | Globale Hotkeys nur auf Windows |
+| **Screenshot-Methode** | CopyFromScreen | gnome-screenshot | screencapture | |
+| **Webcam-Erkennung** | WMI | /dev/video* | ioreg/lsof | |
+| **Token-Speicher** | DPAPI | config.json | Keychain | |
+| **Admin nötig** | Ja (HW-Sensoren) | Nein | Nein | |
+| **Daemon-Modus** | ❌ | ✅ systemd | ❌ | |
+| **Installer** | ✅ InnoSetup | tar.gz | DMG | |
+| **Sensoren** | Alle + GPU/Fan | Alle + GPU/Fan | Alle - GPU/Fan | macOS hat keine öffentliche GPU-API |
+| **Befehle** | Alle | Alle + suspend | Alle - suspend + brightness | |
+| **Actionable Notifications** | Dialog mit Buttons | Auto-Execute | Auto-Execute | Linux/Mac: keine interaktiven Buttons |
+| **Lokalisierung** | 6 Sprachen | 6 Sprachen | 6 Sprachen | de, en, es, fr, zh, ja |
 
 ---
 
 <a id="english"></a>
 
-# English
+# 🇬🇧 English
 
 ## Table of Contents
 
-1. [Installation](#installation-en)
-2. [Initial Setup](#initial-setup-en)
-3. [Sensors](#sensors-en)
-4. [Commands from Home Assistant](#commands-en)
-5. [Actionable Notifications](#actionable-notifications-en)
-6. [Quick Actions](#quick-actions-en)
-7. [Screenshot Function](#screenshot-en)
-8. [Webcam Sensor](#webcam-sensor-en)
-9. [Settings](#settings-en)
-10. [System Tray & Background](#system-tray-en)
-11. [Auto-Update](#auto-update-en)
-12. [Troubleshooting](#troubleshooting-en)
-13. [Platform Comparison](#platform-comparison-en)
+1. [HASS.Agent vs. HA DeskLink – Comparison](#hassagent-vs-ha-desklink--comparison)
+   - [Why HA DeskLink?](#why-ha-desklink)
+   - [Feature Comparison](#feature-comparison)
+   - [Architecture](#architecture)
+   - [What HA DeskLink Does NOT Support](#what-ha-desklink-does-not-support)
+   - [Migrating from HASS.Agent](#migrating-from-hassagent)
+2. [Installation](#installation-en)
+3. [Initial Setup](#initial-setup-en)
+4. [Sensors](#sensors-en)
+5. [Commands from Home Assistant](#commands-en)
+6. [Actionable Notifications](#actionable-notifications-en)
+7. [Quick Actions](#quick-actions-en)
+8. [Screenshot Function](#screenshot-en)
+9. [Webcam Sensor](#webcam-sensor-en)
+10. [Settings](#settings-en)
+11. [System Tray & Background](#system-tray-en)
+12. [Auto-Update](#auto-update-en)
+13. [Troubleshooting](#troubleshooting-en)
+14. [Platform Comparison (Windows / Linux / macOS)](#platform-comparison-windows--linux--macos)
+
+---
+
+## HASS.Agent vs. HA DeskLink – Comparison
+
+### Why HA DeskLink?
+
+HASS.Agent is a great project – but it requires **MQTT** and a **separate integration** in Home Assistant. HA DeskLink takes a different approach: it uses the **mobile_app protocol**, the same one the official mobile app uses. This means: **No extra integration, no MQTT broker needed.** Just install, enter your token, and you're done.
+
+### Feature Comparison
+
+| Feature | HASS.Agent | HA DeskLink | Notes |
+|---|:---:|:---:|---|
+| **Connection** | MQTT | WebSocket (mobile_app) | No MQTT broker needed |
+| **HA Integration** | Custom HACS integration required | Automatic (mobile_app) | Appears like a phone in HA |
+| **CPU Temperature** | ✅ | ✅ | |
+| **CPU Usage** | ✅ | ✅ | |
+| **RAM** | ✅ | ✅ | |
+| **Disk** | ✅ | ✅ | All drives |
+| **Battery** | ✅ | ✅ | |
+| **GPU Temperature** | ✅ | ✅ (Win/Linux) | macOS: no public API |
+| **GPU Usage** | ✅ | ✅ (Win/Linux) | macOS: only with sudo |
+| **Fan Speed** | ✅ | ✅ (Win/Linux) | |
+| **WiFi SSID** | ✅ | ✅ | |
+| **Uptime** | ✅ | ✅ | |
+| **Active Window** | ✅ | ✅ (Win) | Linux/macOS: limited |
+| **Webcam Status** | ❌ | ✅ | v3.0+: sensor if camera is active |
+| **Commands from HA** | ✅ | ✅ | Shutdown, Restart, Lock, etc. |
+| **Screenshot** | ✅ (Snipping Tool) | ✅ (Real + Upload) | Directly as HA event |
+| **Notifications** | ✅ | ✅ | |
+| **Actionable Notifications** | ✅ | ✅ | v3.0+: buttons in notifications |
+| **Quick Actions** | ✅ | ✅ | v3.0+: hotkey + popup |
+| **Media Player** | ✅ | ❌ | Not planned – WebSocket-only |
+| **Embedded Dashboard** | ✅ (WebView) | ✅ (Win: WebView2) | Linux/Mac: browser |
+| **Auto-Update** | ✅ | ✅ | |
+| **System Tray** | ✅ | ✅ (Win) | Linux: daemon, Mac: dock |
+| **Settings** | GUI | GUI (Win) / Config (Linux/Mac) | |
+| **Localization** | English | 6 languages (de, en, es, fr, zh, ja) | |
+| **macOS** | ❌ | ✅ (Community Test) | |
+| **Linux** | ❌ | ✅ | Headless available |
+| **License** | MIT | GPL v3 | HA DeskLink is copyleft |
+
+### Architecture
+
+**HASS.Agent:** `App ←→ MQTT Broker ←→ HA (+ HACS Integration)`
+
+**HA DeskLink:** `App ←→ Home Assistant (WebSocket + Webhook)` – no extra software needed.
+
+### What HA DeskLink Does NOT Support
+
+| Feature | Why Not |
+|---|---|
+| **Media Player** | Would require a custom HA integration. mobile_app doesn't offer a media player entity. |
+| **MQTT** | Intentionally omitted. mobile_app is simpler. |
+| **WebView on Linux/macOS** | WebView2 not stable on Linux/macOS. Dashboard opens in browser. |
+
+### Migrating from HASS.Agent
+
+1. Install HA DeskLink
+2. Enter HA URL + Long-Lived Token
+3. Device registers automatically in HA
+4. Uninstall HASS.Agent – old entities remain in HA until manually deleted
+5. Adjust automations to `sensor.ha_desklink_*`
 
 ---
 
@@ -531,20 +674,24 @@ Sensor `sensor.ha_desklink_webcam_active` – `on` when camera is active, `off` 
 
 <a id="platform-comparison-en"></a>
 
-### Platform Comparison
+### Platform Comparison (Windows / Linux / macOS)
 
 | Feature | Windows | Linux | macOS | Explanation |
 |---|:---:|:---:|:---:|---|
-| GUI | WinForms | Avalonia | Avalonia | |
-| Embedded Dashboard | ✅ WebView2 | ❌ Browser | ❌ Browser | WebView2 not stable |
-| System Tray | ✅ | ❌ Daemon | ❌ Dock | |
-| Quick Actions Hotkey | ✅ Ctrl+Shift+H | ❌ Button | ❌ Button | Global hotkeys Win only |
-| Screenshot Method | CopyFromScreen | gnome-screenshot | screencapture | |
-| Webcam Detection | WMI | /dev/video* | ioreg/lsof | |
-| Token Storage | DPAPI | config.json | Keychain | |
-| Admin Required | Yes (HW sensors) | No | No | |
-| Daemon Mode | ❌ | ✅ systemd | ❌ | |
-| Installer | ✅ InnoSetup | tar.gz | DMG | |
+| **GUI** | WinForms | Avalonia | Avalonia | |
+| **Embedded Dashboard** | ✅ WebView2 | ❌ Browser | ❌ Browser | WebView2 not stable on Linux/Mac |
+| **System Tray** | ✅ | ❌ Daemon | ❌ Dock | |
+| **Quick Actions Hotkey** | ✅ Ctrl+Shift+H | ❌ Button | ❌ Button | Global hotkeys Win only |
+| **Screenshot Method** | CopyFromScreen | gnome-screenshot | screencapture | |
+| **Webcam Detection** | WMI | /dev/video* | ioreg/lsof | |
+| **Token Storage** | DPAPI | config.json | Keychain | |
+| **Admin Required** | Yes (HW sensors) | No | No | |
+| **Daemon Mode** | ❌ | ✅ systemd | ❌ | |
+| **Installer** | ✅ InnoSetup | tar.gz | DMG | |
+| **Sensors** | All + GPU/Fan | All + GPU/Fan | All - GPU/Fan | macOS has no public GPU API |
+| **Commands** | All | All + suspend | All - suspend + brightness | |
+| **Actionable Notifications** | Dialog with buttons | Auto-execute | Auto-execute | Linux/Mac: no interactive buttons |
+| **Localization** | 6 languages | 6 languages | 6 languages | de, en, es, fr, zh, ja |
 
 ---
 
