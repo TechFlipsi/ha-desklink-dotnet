@@ -192,7 +192,11 @@ iscc installer.iss
 The Python version is completed and archived: [ha-desklink](https://github.com/FKirchweger/ha-desklink)
 
 ## License
-GPL v3
+GPL v3 – Copyright © 2026 Fabian Kirchweger
+
+This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License v3.
+
+**Important:** If you modify or distribute this software, you MUST release your changes under the same GPL v3 license. Closed-source or proprietary use is NOT permitted.
 
 ## macOS Version
 There is currently no macOS version of HA DeskLink. Unfortunately, I don't have Mac hardware for testing. If you have a Mac and would like to help, see [Issue #1 in the Linux repo](https://github.com/TechFlipsi/ha-desklink-linux/issues/1).
