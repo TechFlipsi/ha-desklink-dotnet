@@ -1,4 +1,3 @@
-
 // HA DeskLink - Home Assistant Companion App
 // Copyright (C) 2026 Fabian Kirchweger
 //
@@ -40,10 +39,13 @@ public class DeskLinkApp
 
     public void Run()
     {
+        // Load language
+        Localization.LoadLanguage(_config.Language);
+
         if (!_api.LoadRegistration())
         {
-            MessageBox.Show("Keine gespeicherte Verbindung. Bitte App neu starten.",
-                "HA DeskLink", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            MessageBox.Show(Localization.Get("no_connection"),
+                Localization.Get("no_connection_title"), MessageBoxButtons.OK, MessageBoxIcon.Warning);
             return;
         }
 
@@ -61,7 +63,7 @@ public class DeskLinkApp
         // Setup tray FIRST (needed for notifications)
         SetupTray();
 
-        // Start WebSocket connection for push notifications (works for all users, no IP needed)
+        // Start WebSocket connection for push notifications
         var webhookId = _api.GetWebhookId();
         var wsClient = new HaWebSocketClient(_config.HaUrl, _config.HaToken, webhookId, _trayIcon,
             cmd => CommandHandler.Execute(cmd));
@@ -87,8 +89,8 @@ public class DeskLinkApp
                 var updateUrl = await _api.CheckForUpdateAsync(includePrerelease: channel == "prerelease");
                 if (updateUrl != null)
                 {
-                    _trayIcon?.ShowBalloonTip(5000, "Update verf\u00fcgbar",
-                        "Neue Version wird heruntergeladen und installiert...", ToolTipIcon.Info);
+                    _trayIcon?.ShowBalloonTip(5000, Localization.Get("tray_update_available"),
+                        Localization.Get("tray_update_downloading"), ToolTipIcon.Info);
                     await AutoUpdate(updateUrl);
                 }
             }
@@ -110,8 +112,8 @@ public class DeskLinkApp
                     var updateUrl = await _api.CheckForUpdateAsync(includePrerelease: _config.UpdateChannel == "prerelease");
                     if (updateUrl != null)
                     {
-                        _trayIcon?.ShowBalloonTip(5000, "Update verf\u00fcgbar",
-                            "Neue Version wird heruntergeladen und installiert...", ToolTipIcon.Info);
+                        _trayIcon?.ShowBalloonTip(5000, Localization.Get("tray_update_available"),
+                            Localization.Get("tray_update_downloading"), ToolTipIcon.Info);
                         await AutoUpdate(updateUrl);
                     }
                 }
@@ -150,7 +152,6 @@ public class DeskLinkApp
             }
             await _api.UpdateSensorStatesAsync(initial);
             await _api.SendLocationAsync();
-            // Tell HA this device uses WebSocket push channel (not push_url)
             await _api.UpdateRegistrationAsync();
         }
         catch { }
@@ -160,7 +161,6 @@ public class DeskLinkApp
             try
             {
                 var allSensors = _sensors!.CollectAll();
-                // Only send sensors that changed since last update
                 var changed = new List<SensorData>();
                 foreach (var s in allSensors)
                 {
@@ -201,13 +201,13 @@ public class DeskLinkApp
         menu.Items.Add($"HA DeskLink v{GetVersion()}", null, (s, e) => { })!.Enabled = false;
         menu.Items.Add("-");
 
-        menu.Items.Add("Dashboard", null, (s, e) =>
+        menu.Items.Add(Localization.Get("tray_dashboard", "Dashboard"), null, (s, e) =>
         {
             if (!string.IsNullOrEmpty(_config.HaUrl))
                 DashboardWindow.Open(_config.HaUrl);
         });
 
-        menu.Items.Add("Sensoren aktualisieren", null, async (s, e) =>
+        menu.Items.Add(Localization.Get("tray_sensors_update"), null, async (s, e) =>
         {
             try
             {
@@ -217,7 +217,7 @@ public class DeskLinkApp
             catch { }
         });
 
-        menu.Items.Add("Nach Update suchen", null, async (s, e) =>
+        menu.Items.Add(Localization.Get("tray_check_update"), null, async (s, e) =>
         {
             try
             {
@@ -226,41 +226,42 @@ public class DeskLinkApp
                 if (updateUrl != null)
                 {
                     var result = MessageBox.Show(
-                        "Eine neue Version ist verf\u00fcgbar!\n\nJetzt herunterladen und installieren?\n(Die App wird danach neu gestartet)",
-                        "Update verf\u00fcgbar", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+                        Localization.Get("update_available_msg"),
+                        Localization.Get("update_available_title"), MessageBoxButtons.YesNo, MessageBoxIcon.Question);
                     if (result == DialogResult.Yes)
                         await AutoUpdate(updateUrl);
                 }
                 else
-                    MessageBox.Show("HA DeskLink ist auf dem neuesten Stand.", "Update",
-                        MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    MessageBox.Show(Localization.Get("update_uptodate"),
+                        Localization.Get("update_uptodate_title"), MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             catch
             {
-                MessageBox.Show("Update-Pr\u00fcfung fehlgeschlagen.", "Fehler",
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(Localization.Get("update_check_failed"),
+                    Localization.Get("update_check_failed_title"), MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         });
 
-        menu.Items.Add("Einstellungen", null, (s, e) =>
+        menu.Items.Add(Localization.Get("tray_settings"), null, (s, e) =>
             SettingsWindow.Open(_config, Reconnect, _api));
 
-        menu.Items.Add("Log \u00f6ffnen", null, (s, e) =>
+        menu.Items.Add(Localization.Get("tray_open_log"), null, (s, e) =>
         {
             var log = Program.LogFile();
             if (File.Exists(log))
                 Process.Start(new ProcessStartInfo(log) { UseShellExecute = true });
             else
-                MessageBox.Show("Kein Fehler-Log vorhanden.", "Log", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show(Localization.Get("no_log"),
+                    Localization.Get("no_log_title"), MessageBoxButtons.OK, MessageBoxIcon.Information);
         });
 
-        menu.Items.Add("Discord", null, (s, e) =>
+        menu.Items.Add(Localization.Get("tray_discord"), null, (s, e) =>
         {
             Process.Start(new ProcessStartInfo("https://discord.gg/HnCZY54U7") { UseShellExecute = true });
         });
 
         menu.Items.Add("-");
-        menu.Items.Add("Beenden", null, (s, e) => Application.Exit());
+        menu.Items.Add(Localization.Get("tray_exit"), null, (s, e) => Application.Exit());
 
         _trayIcon.ContextMenuStrip = menu;
         _trayIcon.DoubleClick += (s, e) =>
@@ -296,60 +297,37 @@ public class DeskLinkApp
             Directory.CreateDirectory(tempDir);
             var installerPath = Path.Combine(tempDir, "HA_DeskLink_Setup.exe");
 
-            // Download installer
-            _trayIcon?.ShowBalloonTip(3000, "Update", "Lade Update herunter...", ToolTipIcon.Info);
+            _trayIcon?.ShowBalloonTip(3000, "Update", Localization.Get("tray_update_downloading_short"), ToolTipIcon.Info);
             using var client = new HttpClient();
             client.DefaultRequestHeaders.Add("User-Agent", "HA-DeskLink");
             var bytes = await client.GetByteArrayAsync(downloadUrl);
             await File.WriteAllBytesAsync(installerPath, bytes);
 
-            // Verify file was downloaded
             if (!File.Exists(installerPath) || new FileInfo(installerPath).Length < 1000000)
             {
-                MessageBox.Show("Download fehlgeschlagen \u2013 Datei zu klein.", "Fehler",
-                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(Localization.Get("update_download_failed"),
+                    Localization.Get("update_check_failed_title"), MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
 
-            // Launch installer and exit
-            _trayIcon?.ShowBalloonTip(3000, "Update", "Installiere Update... App wird geschlossen.", ToolTipIcon.Info);
+            _trayIcon?.ShowBalloonTip(3000, "Update", Localization.Get("tray_update_installing"), ToolTipIcon.Info);
             var psi = new ProcessStartInfo
             {
                 FileName = installerPath,
                 Arguments = "/SILENT /CLOSEAPPLICATIONS /RESTARTAPPLICATIONS",
                 UseShellExecute = true,
-                Verb = "runas" // Run as admin
+                Verb = "runas"
             };
             Process.Start(psi);
 
-            // Give it a moment then exit
             await Task.Delay(2000);
             Application.Exit();
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Update fehlgeschlagen: {ex.Message}\n\nBitte manuell von GitHub herunterladen.",
-                "Fehler", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            MessageBox.Show(Localization.Get("update_failed", ex.Message),
+                Localization.Get("update_failed_title"), MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
-    }
-
-    private static string GetLocalIpAddress()
-    {
-        try
-        {
-            foreach (var ni in System.Net.NetworkInformation.NetworkInterface.GetAllNetworkInterfaces())
-            {
-                if (ni.OperationalStatus != System.Net.NetworkInformation.OperationalStatus.Up) continue;
-                if (ni.NetworkInterfaceType == System.Net.NetworkInformation.NetworkInterfaceType.Loopback) continue;
-                foreach (var ip in ni.GetIPProperties().UnicastAddresses)
-                {
-                    if (ip.Address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
-                        return ip.Address.ToString();
-                }
-            }
-        }
-        catch { }
-        return "";
     }
 
     private static string GetVersion()
@@ -360,6 +338,6 @@ public class DeskLinkApp
             if (File.Exists(vfile)) return File.ReadAllText(vfile).Trim();
         }
         catch { }
-        return "2.0.3";
+        return "2.2.0";
     }
 }

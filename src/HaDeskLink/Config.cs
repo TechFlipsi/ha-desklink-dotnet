@@ -35,6 +35,10 @@ public class Config
     /// Update channel: "stable" = only stable releases, "prerelease" = includes beta/pre-release versions
     /// </summary>
     public string UpdateChannel { get; set; } = "stable";
+    /// <summary>
+    /// UI language code (de, en, es, fr, zh, ja). Default: de
+    /// </summary>
+    public string Language { get; set; } = "de";
 
     private string ConfigPath => Path.Combine(ConfigDir, "config.json");
 

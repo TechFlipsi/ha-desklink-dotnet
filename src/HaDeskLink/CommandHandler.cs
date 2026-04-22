@@ -58,8 +58,32 @@ public static class CommandHandler
             case "screenshot":
                 TakeScreenshot();
                 break;
+            case "brightness_up":
+                {
+                    var current = SensorManager.GetCurrentBrightness();
+                    if (current.HasValue)
+                        SensorManager.SetBrightness(Math.Min(100, current.Value + 10));
+                }
+                break;
+            case "brightness_down":
+                {
+                    var current = SensorManager.GetCurrentBrightness();
+                    if (current.HasValue)
+                        SensorManager.SetBrightness(Math.Max(0, current.Value - 10));
+                }
+                break;
             default:
-                throw new NotSupportedException($"Unbekannter Befehl: {command}");
+                // Check for brightness value command: "brightness:50"
+                if (command.StartsWith("brightness:", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (int.TryParse(command.Substring("brightness:".Length), out int value))
+                        SensorManager.SetBrightness(Math.Clamp(value, 0, 100));
+                    else
+                        throw new NotSupportedException($"Invalid brightness value: {command}");
+                }
+                else
+                    throw new NotSupportedException($"{Localization.Get("command_unknown", command)}");
+                break;
         }
     }
 

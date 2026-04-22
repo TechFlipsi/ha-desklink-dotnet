@@ -7,7 +7,7 @@
     <ApplicationIcon>Assets\icon.ico</ApplicationIcon>
     <AssemblyName>HA_DeskLink</AssemblyName>
     <RootNamespace>HaDeskLink</RootNamespace>
-    <Version>2.1.1</Version>
+    <Version>2.2.0</Version>
     <Nullable>enable</Nullable>
     <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
@@ -15,6 +15,10 @@
   <ItemGroup>
     <PackageReference Include="LibreHardwareMonitorLib" Version="0.9.4" />
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.2792.45" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="Lang\*.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

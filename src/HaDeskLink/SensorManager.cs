@@ -17,6 +17,7 @@ using System.IO;
 using System.Linq;
 using System.Management;
 using System.Runtime.InteropServices;
+using System.Windows.Forms;
 using LibreHardwareMonitor.Hardware;
 
 namespace HaDeskLink;
@@ -85,6 +86,17 @@ public class SensorManager : IDisposable
         // CPU clock speed and fan speeds from LibreHardwareMonitor
         sensors.AddRange(GetCpuClockSensors());
         sensors.AddRange(GetFanSensors());
+
+        // Fullscreen sensor
+        var fullscreen = GetFullscreenInfo();
+        if (fullscreen != null) sensors.AddRange(fullscreen);
+
+        // Monitor layout
+        sensors.Add(GetMonitorLayout());
+
+        // Brightness
+        var brightness = GetBrightness();
+        if (brightness != null) sensors.Add(brightness);
 
         // Network throughput
         sensors.AddRange(GetNetworkSensors());
@@ -542,11 +554,166 @@ public class SensorManager : IDisposable
         return result;
     }
 
+    // === Fullscreen detection ===
     [DllImport("user32.dll")]
     private static extern IntPtr GetForegroundWindow();
 
     [DllImport("user32.dll", CharSet = CharSet.Unicode)]
     private static extern int GetWindowText(IntPtr hWnd, System.Text.StringBuilder text, int count);
+
+    [DllImport("user32.dll")]
+    private static extern int GetClassName(IntPtr hWnd, System.Text.StringBuilder className, int maxCount);
+
+    [DllImport("user32.dll")]
+    private static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
+
+    [DllImport("user32.dll")]
+    private static extern bool GetMonitorInfo(IntPtr hMonitor, ref MONITORINFO lpmi);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr MonitorFromWindow(IntPtr hwnd, uint dwFlags);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct RECT { public int Left, Top, Right, Bottom; }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct MONITORINFO
+    {
+        public int Size;
+        public RECT Monitor;
+        public RECT WorkArea;
+        public uint Flags;
+    }
+
+    [DllImport("user32.dll")]
+    private static extern uint GetWindowLong(IntPtr hWnd, int nIndex);
+
+    private const int GWL_STYLE = -16;
+    private const uint WS_CAPTION = 0x00C00000;
+    private const uint WS_THICKFRAME = 0x00040000;
+
+    private List<SensorData>? GetFullscreenInfo()
+    {
+        try
+        {
+            var hwnd = GetForegroundWindow();
+            if (hwnd == IntPtr.Zero)
+            {
+                return new List<SensorData>
+                {
+                    new SensorData("fullscreen", "Fullscreen", "off", icon: "mdi:fullscreen", stateClass: "measurement"),
+                    new SensorData("fullscreen_app", "Fullscreen App", "none", icon: "mdi:application")
+                };
+            }
+
+            // Get window title
+            var titleBuilder = new System.Text.StringBuilder(256);
+            GetWindowText(hwnd, titleBuilder, 256);
+            var title = titleBuilder.ToString();
+
+            // Get class name
+            var classBuilder = new System.Text.StringBuilder(256);
+            GetClassName(hwnd, classBuilder, 256);
+            var className = classBuilder.ToString();
+
+            // Check if fullscreen: window covers entire screen
+            GetWindowRect(hwnd, out var windowRect);
+            var monitor = MonitorFromWindow(hwnd, 2 /* MONITOR_DEFAULTTONEAREST */);
+            var monitorInfo = new MONITORINFO();
+            monitorInfo.Size = System.Runtime.InteropServices.Marshal.SizeOf(typeof(MONITORINFO));
+            GetMonitorInfo(monitor, ref monitorInfo);
+            var screen = monitorInfo.Monitor;
+
+            var isFullscreen = windowRect.Left <= screen.Left &&
+                              windowRect.Top <= screen.Top &&
+                              windowRect.Right >= screen.Right &&
+                              windowRect.Bottom >= screen.Bottom &&
+                              !string.IsNullOrWhiteSpace(title);
+
+            // Also check for borderless style (no caption, no thick frame)
+            var style = GetWindowLong(hwnd, GWL_STYLE);
+            var isBorderless = (style & (WS_CAPTION | WS_THICKFRAME)) == 0 && !string.IsNullOrWhiteSpace(title);
+
+            var fullscreen = (isFullscreen && isBorderless) || (isFullscreen && windowRect.Width >= (screen.Right - screen.Left));
+
+            var appName = fullscreen ? (string.IsNullOrWhiteSpace(title) ? className : title) : "none";
+            var state = fullscreen ? "on" : "off";
+
+            return new List<SensorData>
+            {
+                new SensorData("fullscreen", "Fullscreen", state, icon: "mdi:fullscreen", stateClass: "measurement"),
+                new SensorData("fullscreen_app", "Fullscreen App", appName, icon: "mdi:application")
+            };
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    // === Monitor Layout ===
+    private static SensorData GetMonitorLayout()
+    {
+        try
+        {
+            var screens = Screen.AllScreens;
+            var count = screens.Length;
+            var layout = count <= 1 ? "1" : string.Join("+", System.Linq.Enumerable.Range(1, count));
+            return new SensorData("monitor_layout", "Monitor Layout", layout, icon: "mdi:monitor-multiple");
+        }
+        catch
+        {
+            return new SensorData("monitor_layout", "Monitor Layout", "unknown", icon: "mdi:monitor-multiple");
+        }
+    }
+
+    // === Brightness ===
+    private static SensorData? GetBrightness()
+    {
+        try
+        {
+            using var searcher = new ManagementObjectSearcher(
+                "SELECT CurrentBrightness FROM WmiMonitorBrightness WHERE Active=TRUE");
+            foreach (var obj in searcher.Get())
+            {
+                var brightness = Convert.ToUInt32(obj["CurrentBrightness"]);
+                return new SensorData("brightness", "Brightness", brightness, "%",
+                    deviceClass: "illuminance", icon: "mdi:brightness-6", stateClass: "measurement");
+            }
+        }
+        catch { }
+        return null;
+    }
+
+    // === Brightness control ===
+    public static void SetBrightness(int targetBrightness)
+    {
+        try
+        {
+            using var searcher = new ManagementObjectSearcher(
+                "SELECT * FROM WmiMonitorBrightness WHERE Active=TRUE");
+            foreach (ManagementObject obj in searcher.Get())
+            {
+                obj.InvokeMethod("WmiSetBrightness", new object[] { (uint)targetBrightness, 0 });
+            }
+        }
+        catch { }
+    }
+
+    public static int? GetCurrentBrightness()
+    {
+        try
+        {
+            using var searcher = new ManagementObjectSearcher(
+                "SELECT CurrentBrightness FROM WmiMonitorBrightness WHERE Active=TRUE");
+            foreach (var obj in searcher.Get())
+            {
+                return Convert.ToInt32(obj["CurrentBrightness"]);
+            }
+        }
+        catch { }
+        return null;
+    }
 
     public void Dispose()
     {
@@ -564,4 +731,5 @@ public class UpdateVisitor : IVisitor
     public void VisitHardware(IHardware hardware) { hardware.Update(); }
     public void VisitSensor(ISensor sensor) { }
     public void VisitParameter(IParameter parameter) { }
+}
 }

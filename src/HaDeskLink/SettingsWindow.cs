@@ -1,4 +1,3 @@
-
 // HA DeskLink - Home Assistant Companion App
 // Copyright (C) 2026 Fabian Kirchweger
 //
@@ -32,6 +31,7 @@ public class SettingsWindow : Form
     private CheckBox _autostartCheck = null!;
     private NumericUpDown _intervalBox = null!;
     private ComboBox _updateChannelBox = null!;
+    private ComboBox _languageBox = null!;
     private Label _statusLabel = null!;
 
     public SettingsWindow(Config config, Action onReconnect, HaApiClient? api = null)
@@ -39,9 +39,9 @@ public class SettingsWindow : Form
         _config = config;
         _onReconnect = onReconnect;
         _api = api;
-        Text = "HA DeskLink - Einstellungen";
-        Size = new System.Drawing.Size(520, 550);
-        MinimumSize = new System.Drawing.Size(480, 420);
+        Text = $"HA DeskLink - {Localization.Get("settings_title")}";
+        Size = new System.Drawing.Size(520, 600);
+        MinimumSize = new System.Drawing.Size(480, 500);
         StartPosition = FormStartPosition.CenterScreen;
         FormBorderStyle = FormBorderStyle.Sizable;
         InitializeComponents();
@@ -54,27 +54,27 @@ public class SettingsWindow : Form
         {
             Dock = DockStyle.Fill,
             ColumnCount = 2,
-            RowCount = 8,
+            RowCount = 10,
             Padding = new Padding(15),
         };
         panel.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 140));
         panel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
 
-        panel.Controls.Add(new Label { Text = "HA URL:", Anchor = AnchorStyles.Left, AutoSize = true }, 0, 0);
+        panel.Controls.Add(new Label { Text = Localization.Get("settings_ha_url"), Anchor = AnchorStyles.Left, AutoSize = true }, 0, 0);
         _urlBox = new TextBox { Dock = DockStyle.Fill, Text = "https://homeassistant.local:8123" };
         panel.Controls.Add(_urlBox, 1, 0);
 
-        panel.Controls.Add(new Label { Text = "Long-Lived Token:", Anchor = AnchorStyles.Left, AutoSize = true }, 0, 1);
+        panel.Controls.Add(new Label { Text = Localization.Get("settings_token"), Anchor = AnchorStyles.Left, AutoSize = true }, 0, 1);
         _tokenBox = new TextBox { Dock = DockStyle.Fill, UseSystemPasswordChar = true };
         panel.Controls.Add(_tokenBox, 1, 1);
 
-        _sslCheck = new CheckBox { Text = "SSL-Zertifikat pr\u00fcfen", AutoSize = true };
+        _sslCheck = new CheckBox { Text = Localization.Get("settings_verify_ssl"), AutoSize = true };
         panel.Controls.Add(_sslCheck, 0, 2);
         panel.SetColumnSpan(_sslCheck, 2);
 
         var sslHint = new Label
         {
-            Text = "Lokal/Self-signed: Haken entfernen | Nabu Casa/Lets Encrypt: Haken setzen",
+            Text = "Local/Self-signed: Uncheck | Nabu Casa/Let's Encrypt: Check",
             Font = new System.Drawing.Font("", 7),
             ForeColor = System.Drawing.Color.Gray,
             AutoSize = true,
@@ -82,44 +82,52 @@ public class SettingsWindow : Form
         panel.Controls.Add(sslHint, 0, 3);
         panel.SetColumnSpan(sslHint, 2);
 
-        _autostartCheck = new CheckBox { Text = "Autostart (beim Windows-Start)", AutoSize = true };
+        _autostartCheck = new CheckBox { Text = Localization.Get("settings_autostart"), AutoSize = true };
         panel.Controls.Add(_autostartCheck, 0, 4);
         panel.SetColumnSpan(_autostartCheck, 2);
 
-        panel.Controls.Add(new Label { Text = "Sensor-Intervall (Sek):", Anchor = AnchorStyles.Left, AutoSize = true }, 0, 5);
+        panel.Controls.Add(new Label { Text = Localization.Get("settings_sensor_interval"), Anchor = AnchorStyles.Left, AutoSize = true }, 0, 5);
         _intervalBox = new NumericUpDown { Minimum = 5, Maximum = 300, Value = 30, Dock = DockStyle.Fill };
         panel.Controls.Add(_intervalBox, 1, 5);
 
-        panel.Controls.Add(new Label { Text = "Update-Kanal:", Anchor = AnchorStyles.Left, AutoSize = true }, 0, 6);
+        panel.Controls.Add(new Label { Text = Localization.Get("settings_update_channel"), Anchor = AnchorStyles.Left, AutoSize = true }, 0, 6);
         _updateChannelBox = new ComboBox { Dock = DockStyle.Fill, DropDownStyle = ComboBoxStyle.DropDownList };
-        _updateChannelBox.Items.AddRange(new object[] { "stable", "prerelease" });
+        _updateChannelBox.Items.AddRange(new object[] { Localization.Get("settings_channel_stable"), Localization.Get("settings_channel_prerelease") });
         panel.Controls.Add(_updateChannelBox, 1, 6);
 
-        var channelHint = new Label
+        panel.Controls.Add(new Label { Text = Localization.Get("settings_language"), Anchor = AnchorStyles.Left, AutoSize = true }, 0, 7);
+        _languageBox = new ComboBox { Dock = DockStyle.Fill, DropDownStyle = ComboBoxStyle.DropDownList };
+        foreach (var lang in Localization.AvailableLanguages)
         {
-            Text = "Stable = nur fertige Versionen | Pre-Release = auch Beta-Versionen",
+            _languageBox.Items.Add($"{Localization.GetLanguageName(lang)} ({lang})");
+        }
+        panel.Controls.Add(_languageBox, 1, 7);
+
+        var langHint = new Label
+        {
+            Text = "Restart required after language change",
             Font = new System.Drawing.Font("", 7),
             ForeColor = System.Drawing.Color.Gray,
             AutoSize = true,
         };
-        panel.Controls.Add(channelHint, 0, 7);
-        panel.SetColumnSpan(channelHint, 2);
+        panel.Controls.Add(langHint, 0, 8);
+        panel.SetColumnSpan(langHint, 2);
 
         var btnPanel = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight };
-        var saveBtn = new Button { Text = "Speichern", Size = new System.Drawing.Size(100, 35) };
+        var saveBtn = new Button { Text = Localization.Get("settings_save"), Size = new System.Drawing.Size(100, 35) };
         saveBtn.Click += OnSave;
         btnPanel.Controls.Add(saveBtn);
-        var reconnectBtn = new Button { Text = "Neu verbinden", Size = new System.Drawing.Size(120, 35) };
+        var reconnectBtn = new Button { Text = Localization.Get("settings_reconnect_msg").Replace("...", ""), Size = new System.Drawing.Size(120, 35) };
         reconnectBtn.Click += OnReconnectClicked;
         btnPanel.Controls.Add(reconnectBtn);
-        var resetDeviceBtn = new Button { Text = "Neue Ger\u00e4te-ID", Size = new System.Drawing.Size(120, 35) };
+        var resetDeviceBtn = new Button { Text = Localization.Get("tray_settings"), Size = new System.Drawing.Size(120, 35) };
         resetDeviceBtn.Click += OnResetDeviceId;
         btnPanel.Controls.Add(resetDeviceBtn);
-        panel.Controls.Add(btnPanel, 0, 8);
+        panel.Controls.Add(btnPanel, 0, 9);
         panel.SetColumnSpan(btnPanel, 2);
 
-        _statusLabel = new Label { Text = "Bereit", ForeColor = System.Drawing.Color.Gray, AutoSize = true };
-        panel.Controls.Add(_statusLabel, 0, 9);
+        _statusLabel = new Label { Text = Localization.Get("settings_saved"), ForeColor = System.Drawing.Color.Gray, AutoSize = true };
+        panel.Controls.Add(_statusLabel, 0, 10);
         panel.SetColumnSpan(_statusLabel, 2);
 
         Controls.Add(panel);
@@ -133,6 +141,11 @@ public class SettingsWindow : Form
         _autostartCheck.Checked = _config.Autostart;
         _intervalBox.Value = _config.SensorInterval;
         _updateChannelBox.SelectedIndex = _config.UpdateChannel == "prerelease" ? 1 : 0;
+
+        // Select current language
+        var currentLangIndex = Localization.AvailableLanguages.IndexOf(_config.Language);
+        if (currentLangIndex < 0) currentLangIndex = 0;
+        _languageBox.SelectedIndex = currentLangIndex;
     }
 
     private void OnSave(object? sender, EventArgs e)
@@ -142,29 +155,36 @@ public class SettingsWindow : Form
         _config.VerifySsl = _sslCheck.Checked;
         _config.Autostart = _autostartCheck.Checked;
         _config.SensorInterval = (int)_intervalBox.Value;
-        _config.UpdateChannel = _updateChannelBox.SelectedItem?.ToString() ?? "stable";
+        _config.UpdateChannel = _updateChannelBox.SelectedIndex == 1 ? "prerelease" : "stable";
+
+        // Save language
+        if (_languageBox.SelectedIndex >= 0 && _languageBox.SelectedIndex < Localization.AvailableLanguages.Count)
+        {
+            _config.Language = Localization.AvailableLanguages[_languageBox.SelectedIndex];
+        }
+
         _config.Save();
         if (_config.Autostart) Autostart.Enable(); else Autostart.Disable();
-        _statusLabel.Text = "Gespeichert!";
+        _statusLabel.Text = Localization.Get("settings_saved");
     }
 
     private void OnReconnectClicked(object? sender, EventArgs e)
     {
-        _statusLabel.Text = "Verbinde neu...";
+        _statusLabel.Text = Localization.Get("settings_reconnect_msg");
         _onReconnect.Invoke();
-        _statusLabel.Text = "Neu verbunden!";
+        _statusLabel.Text = Localization.Get("settings_saved");
     }
 
     private void OnResetDeviceId(object? sender, EventArgs e)
     {
         var result = MessageBox.Show(
-            "Neue Ger\u00e4te-ID erstellen?\n\nDas alte Ger\u00e4t wird in Home Assistant zur\u00fcckgelassen. " +
-            "Beim n\u00e4chsten Neustart wird ein neues Ger\u00e4t angelegt.",
-            "Ger\u00e4te-ID zur\u00fccksetzen", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+            "Reset device ID?\n\nThe old device will remain in Home Assistant. " +
+            "A new device will be created on next restart.",
+            "Reset Device ID", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
         if (result == DialogResult.Yes)
         {
             _api?.ResetDeviceId();
-            _statusLabel.Text = "Neue ID erstellt – App bitte neustarten!";
+            _statusLabel.Text = "New ID created – please restart!";
         }
     }
 
