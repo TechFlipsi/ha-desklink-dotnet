@@ -1,6 +1,9 @@
 # Changelog
 
 
+## [v3.0.7] - 2026-04-22
+- 🐛 **Bug Fix:** brightness_up/down verwenden jetzt Virtual Keys (wie volume) statt WMI – funktioniert auf allen Monitoren!
+
 ## [v3.0.6] - 2026-04-22
 - 🐛 **Bug Fix:** Notification-Parsing – unterstützt jetzt verschachteltes data.data.command Format (HA mobile_app)
 - 🐛 **Bug Fix:** Brightness-Befehl – PowerShell-Fallback wenn WMI nicht funktioniert (Windows)

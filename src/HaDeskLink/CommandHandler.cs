@@ -66,18 +66,10 @@ public static class CommandHandler
                 OpenSnippingTool();
                 break;
             case "brightness_up":
-                {
-                    var current = SensorManager.GetCurrentBrightness();
-                    if (current.HasValue)
-                        SensorManager.SetBrightness(Math.Min(100, current.Value + 10));
-                }
+                BrightnessUp();
                 break;
             case "brightness_down":
-                {
-                    var current = SensorManager.GetCurrentBrightness();
-                    if (current.HasValue)
-                        SensorManager.SetBrightness(Math.Max(0, current.Value - 10));
-                }
+                BrightnessDown();
                 break;
             default:
                 // Check for brightness value command: "brightness:50"
@@ -104,6 +96,8 @@ public static class CommandHandler
     private const byte VK_VOLUME_MUTE = 0xAD;
     private const byte VK_VOLUME_UP = 0xAF;
     private const byte VK_VOLUME_DOWN = 0xAE;
+    private const byte VK_BRIGHTNESS_UP = 0x6F;   // Monitor brightness up
+    private const byte VK_BRIGHTNESS_DOWN = 0x6E;  // Monitor brightness down
     private const uint KEYEVENTF_KEYUP = 0x0002;
 
     private static void ToggleMute()
@@ -127,6 +121,24 @@ public static class CommandHandler
         {
             keybd_event(VK_VOLUME_DOWN, 0, 0, 0);
             keybd_event(VK_VOLUME_DOWN, 0, KEYEVENTF_KEYUP, 0);
+        }
+    }
+
+    private static void BrightnessUp()
+    {
+        for (int i = 0; i < 5; i++)
+        {
+            keybd_event(VK_BRIGHTNESS_UP, 0, 0, 0);
+            keybd_event(VK_BRIGHTNESS_UP, 0, KEYEVENTF_KEYUP, 0);
+        }
+    }
+
+    private static void BrightnessDown()
+    {
+        for (int i = 0; i < 5; i++)
+        {
+            keybd_event(VK_BRIGHTNESS_DOWN, 0, 0, 0);
+            keybd_event(VK_BRIGHTNESS_DOWN, 0, KEYEVENTF_KEYUP, 0);
         }
     }
 
