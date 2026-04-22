@@ -17,16 +17,19 @@ using System.Windows.Forms;
 namespace HaDeskLink;
 
 /// <summary>
-/// Registers a configurable global hotkey to trigger Quick Actions.
+/// Registers a configurable global hotkey. Supports multiple instances with unique IDs.
 /// Default: Ctrl+Shift+H. Configurable via HotkeyModifiers and HotkeyKey in settings.
 /// </summary>
 public class QuickActionHandler : IDisposable
 {
+    private static int _nextId = 0xC000;
+
     private readonly int _hotkeyId;
-    private readonly Form _hiddenForm;
+    private readonly IntPtr _hwnd;
     private readonly Action _onHotkey;
     private readonly string _modifiers;
     private readonly string _key;
+    private readonly HotkeyMessageFilter _filter;
     private bool _registered;
     private bool _disposed;
 
@@ -35,42 +38,38 @@ public class QuickActionHandler : IDisposable
         _onHotkey = onHotkey;
         _modifiers = modifiers;
         _key = key;
-        _hotkeyId = 0xC000; // Custom hotkey ID
+        _hotkeyId = _nextId++;
 
-        // Create a hidden form to receive WM_HOTKEY messages
-        _hiddenForm = new Form
-        {
-            Size = new System.Drawing.Size(0, 0),
-            Opacity = 0,
-            ShowInTaskbar = false,
-            FormBorderStyle = FormBorderStyle.None
-        };
-        _hiddenForm.Load += (s, e) => RegisterHotkey();
-        _hiddenForm.Visible = false;
-
-        // Intercept WM_HOTKEY
-        _hiddenForm.GetType().GetProperty("Handle")?.GetValue(_hiddenForm); // Force handle creation
+        // Use the main form's handle for WM_HOTKEY messages
+        _hwnd = IntPtr.Zero;
+        _filter = new HotkeyMessageFilter(_hotkeyId, _onHotkey);
     }
 
     public void Start()
     {
-        // Create handle without showing
-        var handle = _hiddenForm.Handle;
+        if (_modifiers == "none")
+        {
+            // Hotkey disabled
+            return;
+        }
 
-        // Install a message filter to catch WM_HOTKEY
-        Application.AddMessageFilter(new HotkeyMessageFilter(_hotkeyId, _onHotkey));
+        // We need a window handle to register hotkeys
+        // Use an invisible message-only window
+        var helper = new NativeWindow();
+        helper.AssignHandle(CreateMessageOnlyWindow());
+        _hwnd = helper.Handle;
 
-        RegisterHotkey();
-    }
-
-    private void RegisterHotkey()
-    {
-        if (_registered) return;
+        Application.AddMessageFilter(_filter);
 
         uint mod = GetModifierFlags(_modifiers);
         uint vk = GetVirtualKey(_key);
+        _registered = RegisterHotKey(_hwnd, _hotkeyId, mod, vk);
 
-        _registered = RegisterHotKey(_hiddenForm.Handle, _hotkeyId, mod, vk);
+        if (!_registered)
+        {
+            // Hotkey may already be registered by another app
+            System.Diagnostics.Debug.WriteLine($"[Hotkey] Failed to register hotkey ID {_hotkeyId} ({GetHotkeyDisplay()})");
+        }
     }
 
     /// <summary>
@@ -90,6 +89,15 @@ public class QuickActionHandler : IDisposable
         };
         return string.IsNullOrEmpty(modStr) ? _key.ToUpper() : $"{modStr}+{_key.ToUpper()}";
     }
+
+    private static IntPtr CreateMessageOnlyWindow()
+    {
+        // HWND_MESSAGE = -3 creates a message-only window
+        return CreateWindowExW(0, "STATIC", "", 0, 0, 0, 0, 0, new IntPtr(-3), IntPtr.Zero, IntPtr.Zero, IntPtr.Zero);
+    }
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern IntPtr CreateWindowExW(uint dwExStyle, string lpClassName, string lpWindowName, uint dwStyle, int x, int y, int nWidth, int nHeight, IntPtr hWndParent, IntPtr hMenu, IntPtr hInstance, IntPtr lpParam);
 
     private static uint GetModifierFlags(string modifiers)
     {
@@ -134,10 +142,9 @@ public class QuickActionHandler : IDisposable
     {
         if (!_disposed)
         {
-            if (_registered)
-                UnregisterHotKey(_hiddenForm.Handle, _hotkeyId);
-            _hiddenForm.Dispose();
-            Application.RemoveMessageFilter(new HotkeyMessageFilter(_hotkeyId, _onHotkey));
+            if (_registered && _hwnd != IntPtr.Zero)
+                UnregisterHotKey(_hwnd, _hotkeyId);
+            Application.RemoveMessageFilter(_filter);
             _disposed = true;
         }
     }

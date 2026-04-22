@@ -33,6 +33,8 @@ public class DeskLinkApp
     private readonly CancellationTokenSource _cts = new();
     private NotifyIcon? _trayIcon;
     private QuickActionHandler? _quickActionHandler;
+    private QuickActionHandler? _dashboardHotkey;
+    private QuickActionHandler? _settingsHotkey;
 
     public DeskLinkApp(Config config)
     {
@@ -157,10 +159,36 @@ public class DeskLinkApp
         }
         catch { }
 
+        // Dashboard hotkey
+        try
+        {
+            if (!string.IsNullOrEmpty(_config.HotkeyDashboardKey) && _config.HotkeyDashboardModifiers != "none")
+            {
+                _dashboardHotkey = new QuickActionHandler(() => DashboardWindow.Open(_config.HaUrl),
+                    _config.HotkeyDashboardModifiers, _config.HotkeyDashboardKey);
+                _dashboardHotkey.Start();
+            }
+        }
+        catch { }
+
+        // Settings hotkey
+        try
+        {
+            if (!string.IsNullOrEmpty(_config.HotkeySettingsKey) && _config.HotkeySettingsModifiers != "none")
+            {
+                _settingsHotkey = new QuickActionHandler(() => SettingsWindow.Open(_config, Reconnect, _api),
+                    _config.HotkeySettingsModifiers, _config.HotkeySettingsKey);
+                _settingsHotkey.Start();
+            }
+        }
+        catch { }
+
         Application.Run();
 
         _cts.Cancel();
         _quickActionHandler?.Dispose();
+        _dashboardHotkey?.Dispose();
+        _settingsHotkey?.Dispose();
         wsClient.Dispose();
         _webhookServer?.Dispose();
         _sensors?.Dispose();

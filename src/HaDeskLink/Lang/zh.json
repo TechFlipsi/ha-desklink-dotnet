@@ -89,5 +89,8 @@
   "settings_hotkey_none": "无（禁用）",
   "settings_connection": "连接",
   "settings_general": "常规",
-  "settings_actions": "操作"
+  "settings_actions": "操作",
+  "settings_hotkey_qa": "快速操作快捷键",
+  "settings_hotkey_dashboard": "仪表盘快捷键",
+  "settings_hotkey_settings": "设置快捷键"
 }

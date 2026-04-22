@@ -34,6 +34,10 @@ public class SettingsWindow : Form
     private ComboBox _themeBox = null!;
     private ComboBox _hotkeyModBox = null!;
     private ComboBox _hotkeyKeyBox = null!;
+    private ComboBox _hotkeyDashModBox = null!;
+    private ComboBox _hotkeyDashKeyBox = null!;
+    private ComboBox _hotkeySettingsModBox = null!;
+    private ComboBox _hotkeySettingsKeyBox = null!;
     private Label _statusLabel = null!;
     private DataGridView _qaGrid = null!;
 
@@ -49,7 +53,7 @@ public class SettingsWindow : Form
         _onReconnect = onReconnect;
         _api = api;
         Text = $"HA DeskLink - {Localization.Get("settings_title")}";
-        Size = new Size(620, 900);
+        Size = new Size(620, 960);
         MinimumSize = new Size(520, 700);
         StartPosition = FormStartPosition.CenterScreen;
         FormBorderStyle = FormBorderStyle.Sizable;
@@ -97,7 +101,7 @@ public class SettingsWindow : Form
         // === General Section ===
         content.Controls.Add(MakeHeader("⚙️ " + Localization.Get("settings_general", "General")));
 
-        var genTable = new TableLayoutPanel { Dock = DockStyle.Top, ColumnCount = 2, RowCount = 7, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, Padding = new Padding(0, 5, 0, 15) };
+        var genTable = new TableLayoutPanel { Dock = DockStyle.Top, ColumnCount = 2, RowCount = 8, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink, Padding = new Padding(0, 5, 0, 15) };
         genTable.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 140));
         genTable.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
 
@@ -125,17 +129,41 @@ public class SettingsWindow : Form
         _themeBox.Items.AddRange(new object[] { Localization.Get("settings_theme_system"), Localization.Get("settings_theme_light"), Localization.Get("settings_theme_dark") });
         genTable.Controls.Add(_themeBox, 1, 4);
 
-        // Hotkey row: modifier + key side by side
-        genTable.Controls.Add(MakeLabel(Localization.Get("settings_hotkey_modifiers")), 0, 5);
+        // Hotkey: Quick Actions
+        genTable.Controls.Add(MakeLabel(Localization.Get("settings_hotkey_qa")), 0, 5);
         var hotkeyPanel = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight, AutoSize = true };
-        _hotkeyModBox = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 130 };
+        _hotkeyModBox = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 120 };
         _hotkeyModBox.Items.AddRange(new object[] { "Ctrl+Shift", "Ctrl+Alt", "Ctrl", "Alt", "Shift", Localization.Get("settings_hotkey_none") });
         hotkeyPanel.Controls.Add(_hotkeyModBox);
-        hotkeyPanel.Controls.Add(new Label { Text = " + ", AutoSize = true, Margin = new Padding(4, 6, 4, 0) });
-        _hotkeyKeyBox = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 90 };
+        hotkeyPanel.Controls.Add(new Label { Text = "+", AutoSize = true, Margin = new Padding(4, 6, 4, 0) });
+        _hotkeyKeyBox = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 80 };
         _hotkeyKeyBox.Items.AddRange(new object[] { "H", "Q", "A", "S", "D", "F", "F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9", "F10", "F11", "F12", "Space" });
         hotkeyPanel.Controls.Add(_hotkeyKeyBox);
         genTable.Controls.Add(hotkeyPanel, 1, 5);
+
+        // Hotkey: Dashboard
+        genTable.Controls.Add(MakeLabel(Localization.Get("settings_hotkey_dashboard")), 0, 6);
+        var dashHotkeyPanel = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight, AutoSize = true };
+        _hotkeyDashModBox = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 120 };
+        _hotkeyDashModBox.Items.AddRange(new object[] { "Ctrl+Shift", "Ctrl+Alt", "Ctrl", "Alt", "Shift", Localization.Get("settings_hotkey_none") });
+        dashHotkeyPanel.Controls.Add(_hotkeyDashModBox);
+        dashHotkeyPanel.Controls.Add(new Label { Text = "+", AutoSize = true, Margin = new Padding(4, 6, 4, 0) });
+        _hotkeyDashKeyBox = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 80 };
+        _hotkeyDashKeyBox.Items.AddRange(new object[] { "D", "H", "Q", "A", "S", "F", "F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9", "F10", "F11", "F12", "Space" });
+        dashHotkeyPanel.Controls.Add(_hotkeyDashKeyBox);
+        genTable.Controls.Add(dashHotkeyPanel, 1, 6);
+
+        // Hotkey: Settings
+        genTable.Controls.Add(MakeLabel(Localization.Get("settings_hotkey_settings")), 0, 7);
+        var settingsHotkeyPanel = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight, AutoSize = true };
+        _hotkeySettingsModBox = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 120 };
+        _hotkeySettingsModBox.Items.AddRange(new object[] { "Ctrl+Shift", "Ctrl+Alt", "Ctrl", "Alt", "Shift", Localization.Get("settings_hotkey_none") });
+        settingsHotkeyPanel.Controls.Add(_hotkeySettingsModBox);
+        settingsHotkeyPanel.Controls.Add(new Label { Text = "+", AutoSize = true, Margin = new Padding(4, 6, 4, 0) });
+        _hotkeySettingsKeyBox = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Width = 80 };
+        _hotkeySettingsKeyBox.Items.AddRange(new object[] { "S", "H", "Q", "A", "D", "F", "F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9", "F10", "F11", "F12", "Space" });
+        settingsHotkeyPanel.Controls.Add(_hotkeySettingsKeyBox);
+        genTable.Controls.Add(settingsHotkeyPanel, 1, 7);
 
         content.Controls.Add(genTable);
 
@@ -320,6 +348,22 @@ public class SettingsWindow : Form
         var keyIndex = _hotkeyKeyBox.Items.IndexOf(_config.HotkeyKey.ToUpper());
         _hotkeyKeyBox.SelectedIndex = keyIndex >= 0 ? keyIndex : 0;
 
+        // Dashboard hotkey
+        _hotkeyDashModBox.SelectedIndex = _config.HotkeyDashboardModifiers switch
+        {
+            "ctrl_shift" => 0, "ctrl_alt" => 1, "ctrl" => 2, "alt" => 3, "shift" => 4, "none" => 5, _ => 0
+        };
+        var dashKeyIndex = _hotkeyDashKeyBox.Items.IndexOf(_config.HotkeyDashboardKey.ToUpper());
+        _hotkeyDashKeyBox.SelectedIndex = dashKeyIndex >= 0 ? dashKeyIndex : 0;
+
+        // Settings hotkey
+        _hotkeySettingsModBox.SelectedIndex = _config.HotkeySettingsModifiers switch
+        {
+            "ctrl_shift" => 0, "ctrl_alt" => 1, "ctrl" => 2, "alt" => 3, "shift" => 4, "none" => 5, _ => 0
+        };
+        var settingsKeyIndex = _hotkeySettingsKeyBox.Items.IndexOf(_config.HotkeySettingsKey.ToUpper());
+        _hotkeySettingsKeyBox.SelectedIndex = settingsKeyIndex >= 0 ? settingsKeyIndex : 0;
+
         try
         {
             var actions = JsonSerializer.Deserialize<List<QuickAction>>(_config.QuickActions) ?? new List<QuickAction>();
@@ -348,6 +392,18 @@ public class SettingsWindow : Form
             0 => "ctrl_shift", 1 => "ctrl_alt", 2 => "ctrl", 3 => "alt", 4 => "shift", 5 => "none", _ => "ctrl_shift"
         };
         _config.HotkeyKey = _hotkeyKeyBox.SelectedItem?.ToString() ?? "H";
+
+        _config.HotkeyDashboardModifiers = _hotkeyDashModBox.SelectedIndex switch
+        {
+            0 => "ctrl_shift", 1 => "ctrl_alt", 2 => "ctrl", 3 => "alt", 4 => "shift", 5 => "none", _ => "ctrl_shift"
+        };
+        _config.HotkeyDashboardKey = _hotkeyDashKeyBox.SelectedItem?.ToString() ?? "D";
+
+        _config.HotkeySettingsModifiers = _hotkeySettingsModBox.SelectedIndex switch
+        {
+            0 => "ctrl_shift", 1 => "ctrl_alt", 2 => "ctrl", 3 => "alt", 4 => "shift", 5 => "none", _ => "ctrl_shift"
+        };
+        _config.HotkeySettingsKey = _hotkeySettingsKeyBox.SelectedItem?.ToString() ?? "S";
 
         _config.Save();
         if (_config.Autostart) Autostart.Enable(); else Autostart.Disable();

@@ -89,5 +89,8 @@
   "settings_hotkey_none": "Keine (deaktiviert)",
   "settings_connection": "Verbindung",
   "settings_general": "Allgemein",
-  "settings_actions": "Aktionen"
+  "settings_actions": "Aktionen",
+  "settings_hotkey_qa": "Quick Actions Hotkey",
+  "settings_hotkey_dashboard": "Dashboard Hotkey",
+  "settings_hotkey_settings": "Einstellungen Hotkey"
 }

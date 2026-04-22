@@ -62,6 +62,22 @@ public class Config
     /// </summary>
     public string HotkeyKey { get; set; } = "H";
     /// <summary>
+    /// Dashboard hotkey modifiers. Default: Ctrl+Shift
+    /// </summary>
+    public string HotkeyDashboardModifiers { get; set; } = "ctrl_shift";
+    /// <summary>
+    /// Dashboard hotkey key. Default: D
+    /// </summary>
+    public string HotkeyDashboardKey { get; set; } = "D";
+    /// <summary>
+    /// Settings hotkey modifiers. Default: Ctrl+Shift
+    /// </summary>
+    public string HotkeySettingsModifiers { get; set; } = "ctrl_shift";
+    /// <summary>
+    /// Settings hotkey key. Default: S
+    /// </summary>
+    public string HotkeySettingsKey { get; set; } = "S";
+    /// <summary>
     /// Encrypted HA token (DPAPI protected). When set, HaToken is cleared.
     /// If empty, HaToken is used (migration from old config).
     /// </summary>

@@ -1,6 +1,12 @@
 # Changelog
 
 
+## [v3.0.14] - 2026-04-22
+- ✨ **Neu:** Drei konfigurierbare Hotkeys – Quick Actions (Ctrl+Shift+H), Dashboard (Ctrl+Shift+D), Einstellungen (Ctrl+Shift+S)
+- 🐛 **Bug Fix:** Entity-Dropdown funktioniert jetzt mit ComboBox-Spalte
+- 🐛 **Bug Fix:** Hotkey-IDs waren identisch (Kollision) – jetzt eindeutige IDs für jeden Hotkey
+- 🎨 **Redesign:** Einstellungen nutzen volle Breite, scrollbar, responsive
+
 ## [v3.0.13] - 2026-04-22
 - 🐛 **Bug Fix:** Entity-Dropdown im Quick Actions Editor – ComboBox statt TextBox für Entity-Auswahl
 

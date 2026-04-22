@@ -89,5 +89,8 @@
   "settings_hotkey_none": "なし（無効）",
   "settings_connection": "接続",
   "settings_general": "全般",
-  "settings_actions": "アクション"
+  "settings_actions": "アクション",
+  "settings_hotkey_qa": "クイックアクション ホットキー",
+  "settings_hotkey_dashboard": "ダッシュボード ホットキー",
+  "settings_hotkey_settings": "設定 ホットキー"
 }
