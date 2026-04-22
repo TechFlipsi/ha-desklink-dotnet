@@ -1,5 +1,11 @@
 # HA DeskLink v2.2
 
+[![Build](https://img.shields.io/github/actions/workflow/status/TechFlipsi/ha-desklink-dotnet/build.yml?branch=main&label=Build)](https://github.com/TechFlipsi/ha-desklink-dotnet/actions)
+[![Version](https://img.shields.io/github/v/release/TechFlipsi/ha-desklink-dotnet?label=Version)](https://github.com/TechFlipsi/ha-desklink-dotnet/releases/latest)
+[![License](https://img.shields.io/github/license/TechFlipsi/ha-desklink-dotnet?label=License)](https://github.com/TechFlipsi/ha-desklink-dotnet/LICENSE)
+[![Downloads](https://img.shields.io/github/downloads/TechFlipsi/ha-desklink-dotnet/total?label=Downloads)](https://github.com/TechFlipsi/ha-desklink-dotnet/releases)
+[![Discord](https://img.shields.io/discord/1496261911677894867?label=Discord)](https://discord.gg/HnCZY54U7)
+
 **Windows Companion App für Home Assistant** – nativ, schnell, zuverlässig.
 
 Geschrieben in **C# / .NET 8** mit LibreHardwareMonitorLib für echte Hardware-Sensoren.
