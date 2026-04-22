@@ -1,5 +1,9 @@
 # Changelog
 
+
+## [v3.0.1] - 2026-04-22
+- 🐛 **Bug Fix:** Token-Entschlüsselung gibt leeren String zurück → keine HA-Verbindung mehr (verhindert IP-Sperre durch zu viele fehlgeschlagene Auth-Versuche)
+- 🐛 **Bug Fix:** WebhookServer-Crash durch disposed CancellationTokenSource (Windows)
 Alle nennenswerten Änderungen an diesem Projekt werden hier dokumentiert.
 
 ## [v3.0.0] - 2026-04-22
