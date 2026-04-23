@@ -314,7 +314,7 @@ public class SettingsWindow : Form
             {
                 var actions = GetCurrentQuickActions();
                 actions.Add(new QuickAction(item.EntityId, string.IsNullOrEmpty(nameBox.Text) ? item.FriendlyName : nameBox.Text));
-                _config.QuickActions = JsonSerializer.Serialize(actions);
+                _config.QuickActions = JsonSerializer.Serialize(actions, _jsonOpts);
                 _config.Save();
                 LoadQuickActionsList();
                 dialog.Close();
@@ -397,7 +397,7 @@ public class SettingsWindow : Form
             if (entityCombo.SelectedItem is EntityItem item)
             {
                 actions[idx] = new QuickAction(item.EntityId, string.IsNullOrEmpty(nameBox.Text) ? item.FriendlyName : nameBox.Text);
-                _config.QuickActions = JsonSerializer.Serialize(actions);
+                _config.QuickActions = JsonSerializer.Serialize(actions, _jsonOpts);
                 _config.Save();
                 LoadQuickActionsList();
                 dialog.Close();
@@ -407,7 +407,7 @@ public class SettingsWindow : Form
         deleteBtn.Click += (s, args) =>
         {
             actions.RemoveAt(idx);
-            _config.QuickActions = JsonSerializer.Serialize(actions);
+            _config.QuickActions = JsonSerializer.Serialize(actions, _jsonOpts);
             _config.Save();
             LoadQuickActionsList();
             dialog.Close();
@@ -431,7 +431,7 @@ public class SettingsWindow : Form
         if (idx < actions.Count)
         {
             actions.RemoveAt(idx);
-            _config.QuickActions = JsonSerializer.Serialize(actions);
+            _config.QuickActions = JsonSerializer.Serialize(actions, _jsonOpts);
             _config.Save();
             LoadQuickActionsList();
         }
@@ -466,7 +466,15 @@ public class SettingsWindow : Form
         }
     }
 
+    private static readonly JsonSerializerOptions _jsonOpts = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase, WriteIndented = false };
+
     private class EntityItem
+    {
+        public string EntityId { get; }
+        public string FriendlyName { get; }
+        public EntityItem(string entityId, string friendlyName) { EntityId = entityId; FriendlyName = friendlyName; }
+        public override string ToString() => $"{FriendlyName} ({EntityId})";
+    }
     {
         public string EntityId { get; }
         public string FriendlyName { get; }

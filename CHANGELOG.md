@@ -1,6 +1,10 @@
 # Changelog
 
 
+## [v3.0.17] - 2026-04-23
+- 🐛 **Bug Fix:** Quick Actions wurden nicht gespeichert – JSON-Serialisierung erzeugte PascalCase statt camelCase
+- 🐛 **Bug Fix:** Config.Save() hat Theme und Hotkey-Einstellungen verloren (fehlten im saveConfig-Klon)
+
 ## [v3.0.16] - 2026-04-22
 - 🎨 **Quick Actions komplett vereinfacht** – ListBox statt DataGridView, einfaches Hinzufügen/Bearbeiten/Entfernen per Dialog
 - 🐛 **Bug Fix:** DataGridViewComboBox-Ausnahme behoben (Wert nicht in Items-Liste)

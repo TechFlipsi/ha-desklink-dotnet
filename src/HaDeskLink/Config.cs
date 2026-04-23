@@ -179,7 +179,14 @@ public class Config
             UpdateChannel = UpdateChannel,
             Language = Language,
             HaTokenEncrypted = HaTokenEncrypted,
-            QuickActions = QuickActions
+            QuickActions = QuickActions,
+            Theme = Theme,
+            HotkeyModifiers = HotkeyModifiers,
+            HotkeyKey = HotkeyKey,
+            HotkeyDashboardModifiers = HotkeyDashboardModifiers,
+            HotkeyDashboardKey = HotkeyDashboardKey,
+            HotkeySettingsModifiers = HotkeySettingsModifiers,
+            HotkeySettingsKey = HotkeySettingsKey
         };
 
         var json = JsonSerializer.Serialize(saveConfig, new JsonSerializerOptions { WriteIndented = true });
