@@ -13,5 +13,14 @@
   "tr": "Türkçe",
   "ar": "العربية",
   "ko": "한국어",
-  "sv": "Svenska"
+  "sv": "Svenska",
+  "stream_settings": "Audio-Streaming",
+  "stream_toggle": "Streaming",
+  "stream_enabled": "Audio-Streaming aktivieren (Sendspin-Player)",
+  "stream_enabled_desc": "Lässt diesen PC als Music-Assistant-Player erscheinen — Musik aus der App auf PC-Lautsprecher/Kopfhörer.",
+  "stream_player_name": "Player-Name",
+  "stream_player_name_desc": "Name unter dem dieser PC in Music Assistant erscheint",
+  "stream_player_name_tooltip": "Name unter dem dieser Player in Music Assistant erscheint",
+  "stream_status": "Status",
+  "stream_status_desc": "Verbindungsstatus des Sendspin-Players"
 }
