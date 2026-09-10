@@ -1,5 +1,7 @@
 # HA DeskLink v5.0
 
+🌐 **[Project homepage & downloads](https://techflipsi.github.io/ha-desklink/)**
+
 [![Build](https://img.shields.io/github/actions/workflow/status/TechFlipsi/ha-desklink-windows/build.yml?branch=main&label=Build)](https://github.com/TechFlipsi/ha-desklink-windows/actions)
 [![Version](https://img.shields.io/github/v/release/TechFlipsi/ha-desklink-windows?label=Version)](https://github.com/TechFlipsi/ha-desklink-windows/releases/latest)
 [![License](https://img.shields.io/github/license/TechFlipsi/ha-desklink-windows?label=License)](https://github.com/TechFlipsi/ha-desklink-windows/LICENSE)
