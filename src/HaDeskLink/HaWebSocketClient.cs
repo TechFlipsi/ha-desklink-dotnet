@@ -48,6 +48,12 @@ public class HaWebSocketClient : IDisposable
     public bool IsConnected => _connected;
 
     /// <summary>
+    /// Feuert bei Entity-State-Änderungen aus subscribe_entities-Events
+    /// (entity_id, new_state, unit_of_measurement). Fan-out für Desktop-Widgets.
+    /// </summary>
+    public event Action<string, string, string?>? EntityStateChanged;
+
+    /// <summary>
     /// Whether retries are blocked due to too many login failures.
     /// Call ResetLoginBlock() to allow retries again.
     /// </summary>
@@ -129,6 +135,18 @@ public class HaWebSocketClient : IDisposable
                     support_confirm = false
                 });
 
+                // Step 4b: Subscribe to entity state changes (Fan-out für Desktop-Widgets).
+                // Liefert Event-Updates ohne zusätzliches Polling.
+                try
+                {
+                    await SendMessage(new
+                    {
+                        id = _msgId++,
+                        type = "subscribe_entities"
+                    });
+                }
+                catch { } // nicht kritisch — Widgets nutzen zusätzlich SensorInterval-Polling
+
                 // Notify user that WebSocket is connected
                 NotificationHandler.ShowConnectionToast("HA DeskLink",
                     Localization.Get("ws_connected", "Verbunden mit Home Assistant (WebSocket)"));
@@ -200,6 +218,41 @@ public class HaWebSocketClient : IDisposable
         {
             var doc = JsonDocument.Parse(msg);
             var root = doc.RootElement;
+
+            // subscribe_entities-Events → EntityStateChanged (Widget-Fan-out)
+            if (root.TryGetProperty("type", out var stypeEl) && stypeEl.GetString() == "event")
+            {
+                if (root.TryGetProperty("event", out var sEvent) &&
+                    sEvent.TryGetProperty("a", out var added))
+                {
+                    // Format: {"a": {"entity_id": {"+": "state", "u": "unit"}}}
+                    foreach (var entity in added.EnumerateObject())
+                    {
+                        string newState = "unknown";
+                        string? unit = null;
+                        if (entity.Value.TryGetProperty("+", out var plus))
+                            newState = plus.GetString() ?? "unknown";
+                        if (entity.Value.TryGetProperty("u", out var uEl) && uEl.ValueKind == JsonValueKind.String)
+                            unit = uEl.GetString();
+                        try { EntityStateChanged?.Invoke(entity.Name, newState, unit); }
+                        catch { }
+                    }
+                }
+                else if (root.TryGetProperty("event", out var cEvent) &&
+                         cEvent.TryGetProperty("c", out var changed))
+                {
+                    // Format: {"c": {"entity_id": {"+": "state"}}}
+                    foreach (var entity in changed.EnumerateObject())
+                    {
+                        string newState = "unknown";
+                        string? unit = null;
+                        if (entity.Value.TryGetProperty("+", out var plus))
+                            newState = plus.GetString() ?? "unknown";
+                        try { EntityStateChanged?.Invoke(entity.Name, newState, unit); }
+                        catch { }
+                    }
+                }
+            }
 
             // HA sends push notifications via WebSocket events
             if (root.TryGetProperty("type", out var typeEl) && typeEl.GetString() == "event")

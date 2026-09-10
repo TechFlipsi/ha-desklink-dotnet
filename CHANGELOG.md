@@ -1,3 +1,24 @@
+## v5.0.5 (2026-09-10)
+
+### 🎵 Music Assistant Integration (neu)
+- **MA voll nativ in der App** – Music Assistant direkt in HA DeskLink steuern, ohne die MA-Web-UI: Suche über die komplette Bibliothek (Spotify, YouTube Music, TuneIn, lokale Dateien), Warteschlange anzeigen und umsortieren, Play/Pause/Next/Previous, Lautstärke, Shuffle/Repeat
+- **Player-Auswahl in der Sidebar** – alle MA-Player live mit Abspielstatus
+- **Verbindungstest** – Einstellungen → Music Assistant: Host + Port + Token eintragen, Button testet die Verbindung sofort (MA auf TrueNAS, HA-Add-on oder Standalone)
+- **Token verschlüsselt gespeichert** (DPAPI) — wie beim HA-Token
+- **Live-Updates per Push** – Player- und Queue-Änderungen erscheinen sofort
+
+### 🧩 Desktop-Widgets (neu)
+- **Sensor-Karten direkt am Desktop** – z.B. Büro-Temperatur als kleine Karte, live aktualisiert, hinter allen Fenstern
+- **Schalter-Karten** – Einzeltoggle oder 2–4 Schalter in einer Karte
+- **Vollbild-kompatibel** – Widgets liegen auf der Desktop-Ebene: beim Zocken am Hauptmonitor unsichtbar, auf Monitor 2/3 bleiben sie sichtbar und aktualisieren weiter
+- **Klick-Durchlässigkeit** – reine Anzeige-Widgets blockieren keine Klicks (konfigurierbar)
+- **Widget-Editor** – Einstellungen → Widgets: anlegen, positionieren, testen
+- **DPI-PerMonitorV2** – saubere Skalierung auf Monitoren mit unterschiedlicher Skalierung
+
+### 🌍 i18n
+- Neue Keys (`ma_*`, `widget_*`, `stream_*`) in alle Sprachen übernommen
+
+
 ## v5.0.4 (2026-08-09)
 
 ### 🔧 Bugfixes

@@ -14,6 +14,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Net.Http;
 using System.Reflection;
 using System.Text.Json;
@@ -40,6 +41,8 @@ public class DeskLinkApp
     private MqttClient? _mqttClient;
     private MediaPlayer? _mediaPlayer;
     private System.Threading.Timer? _mediaTimer;
+    internal WidgetManager? _widgetManager;
+    internal HaDeskLink.Sendspin.SendspinManager? _sendspinManager;
 
     public DeskLinkApp(Config config)
     {
@@ -94,6 +97,23 @@ public class DeskLinkApp
             cmd => CommandHandler.Execute(cmd), verifySsl: _config.VerifySsl);
         _wsClient = wsClient;
 
+        // ── Desktop-Widgets (WorkerW-Schicht) ─────────────────────────
+        // Ein geteilter WebSocket-Kanal → Fan-out an alle Widgets.
+        // subscribe_entities liefert Push-Events; zusätzlich aktualisiert
+        // das SensorInterval-Polling (unten) als Fallback.
+        try
+        {
+            _widgetManager = new WidgetManager(_config, _api);
+            wsClient.EntityStateChanged += (entityId, state, unit) =>
+                _widgetManager?.OnEntityStateChanged(entityId, state, unit);
+            _widgetManager.StartAll();
+        }
+        catch (Exception ex)
+        {
+            File.AppendAllText(Program.LogFile(), $"[Widgets] Init error: {ex}\n");
+            _widgetManager = null;
+        }
+
         try
         {
             _webhookServer = new WebhookServer(_config.HaToken, bindAddress: _config.WebhookBindAddress);
@@ -137,6 +157,24 @@ public class DeskLinkApp
                     }
                 });
             Task.Run(() => MqttConnectAsync(_cts.Token), _cts.Token);
+        }
+
+        // ── Sendspin streaming client (Music Assistant player role) ──
+        try
+        {
+            _sendspinManager = new HaDeskLink.Sendspin.SendspinManager(_config,
+                msg => File.AppendAllText(Program.LogFile(), $"[Sendspin] {msg}\n"));
+            _sendspinManager.StateChanged += state =>
+            {
+                try { File.AppendAllText(Program.LogFile(),
+                    $"[Sendspin] state: connected={state.Connected} synced={state.TimeSynced} " +
+                    $"streaming={state.Streaming} err={state.SyncErrorUs}us\n"); } catch { }
+            };
+            _sendspinManager.Start();
+        }
+        catch (Exception ex)
+        {
+            File.AppendAllText(Program.LogFile(), $"[Sendspin] Failed to start manager: {ex}\n");
         }
 
         // ── Media player state polling via MQTT ─────────────────────
@@ -257,6 +295,7 @@ public class DeskLinkApp
 
         // Cancel all background tasks first
         _cts.Cancel();
+        _sendspinManager?.Dispose();
         _mediaTimer?.Dispose();
         _mediaPlayer?.Dispose();
 
@@ -292,6 +331,7 @@ public class DeskLinkApp
         _quickActionHandler?.Dispose();
         _dashboardHotkey?.Dispose();
         _settingsHotkey?.Dispose();
+        _widgetManager?.Dispose();
         wsClient.Dispose();
         _webhookServer?.Dispose();
         _sensors?.Dispose();
@@ -301,6 +341,42 @@ public class DeskLinkApp
 
     private async Task SensorLoop(CancellationToken ct)
     {
+        // Widget-Entity-Polling als Fallback/Start (WebSocket-Push hat Vorrang).
+        // Fragt alle Widget-Entities per REST ab und füttert den Fan-out.
+        _ = Task.Run(async () =>
+        {
+            while (!ct.IsCancellationRequested)
+            {
+                try
+                {
+                    if (_widgetManager != null)
+                    {
+                        var ids = new List<string>();
+                        foreach (var w in WidgetConfigStore.Parse(_config))
+                        {
+                            if (!string.IsNullOrEmpty(w.EntityId)) ids.Add(w.EntityId);
+                            ids.AddRange(w.Entities.Select(e => e.EntityId));
+                        }
+                        foreach (var id in ids.Distinct())
+                        {
+                            try
+                            {
+                                var st = await _api.GetEntityStateAsync(id);
+                                if (st != null)
+                                    _widgetManager.OnEntityStateChanged(id, st.Value.State, st.Value.Unit);
+                            }
+                            catch { }
+                        }
+                    }
+                }
+                catch { }
+                // Fallback-Intervall: SensorInterval (min. 10s, gedämpft auf max. 30s-Zyklus)
+                var interval = Math.Clamp(_config.SensorInterval, 10, 30);
+                try { await Task.Delay(TimeSpan.FromSeconds(interval), ct); }
+                catch { break; }
+            }
+        }, ct);
+
         try
         {
             var initial = _sensors!.CollectAll();
@@ -395,6 +471,22 @@ public class DeskLinkApp
             {
                 if (_sensors != null)
                     await _api.UpdateSensorStatesAsync(_sensors.CollectAll());
+            }
+            catch { }
+        });
+
+        menu.Items.Add("🎵 " + Localization.Get("ma_settings", "Music Assistant"), null, (s, e) =>
+        {
+            try
+            {
+                var cfg = Config.Load();
+                if (string.IsNullOrWhiteSpace(cfg.MaHost))
+                {
+                    // MA nicht konfiguriert → Settings öffnen (dort ist die MA-Sektion)
+                    SettingsWindow.Open(_config, Reconnect, _api);
+                    return;
+                }
+                MusicWindow.Open(_config);
             }
             catch { }
         });

@@ -52,6 +52,11 @@ public class SettingsWindow : Form
     private ListBox _qaList = null!;
     private List<(string entityId, string friendlyName)> _entities = new();
 
+    // ═══ Steuerlemente — Desktop-Widgets ═══
+    private ListBox _widgetList = null!;
+    private Button _widgetTestBtn = null!;
+    private Label _widgetDescLabel = null!;
+
     // ═══ MQTT-Steuerlemente ═══
     private CheckBox _mqttEnabledCheck = null!;
     private TextBox _mqttBrokerBox = null!;
@@ -61,6 +66,18 @@ public class SettingsWindow : Form
     private CheckBox _mqttSslCheck = null!;
     private TextBox _mqttFallbackBox = null!;
     private Label _mqttStatusLabel = null!;
+
+    // ═══ Steuerlemente — Music-Assistant ═══
+    private TextBox _maHostBox = null!;
+    private TextBox _maPortBox = null!;
+    private TextBox _maTokenBox = null!;
+    private Label _maTestResultLabel = null!;
+    private Button _maTestBtn = null!;
+
+    // ═══ Steuerlemente — Streaming (Sendspin) ═══
+    private CheckBox _streamEnabledCheck = null!;
+    private TextBox _streamPlayerNameBox = null!;
+    private Label _streamStatusLabel = null!;
 
     // ═══ Layout-Panels für Navigation und Theme ═══
     private Panel _sidebarPanel = null!;
@@ -103,6 +120,7 @@ public class SettingsWindow : Form
         InitializeComponents();
         LoadSettings();
         LoadQuickActionsList();
+        LoadWidgetsList();
         ApplyTheme(_config.Theme);
         ShowSection(0);
     }
@@ -133,7 +151,10 @@ public class SettingsWindow : Form
         _sectionPanels.Add(BuildNotificationsSection());
         _sectionPanels.Add(BuildHotkeysSection());
         _sectionPanels.Add(BuildMqttSection());
+        _sectionPanels.Add(BuildMusicAssistantSection());
+        _sectionPanels.Add(BuildStreamingSection());
         _sectionPanels.Add(BuildQuickActionsSection());
+        _sectionPanels.Add(BuildWidgetsSection());
 
         // Sections zum Inhaltsbereich hinzufügen (alle unsichtbar, ShowSection() blendet eine ein)
         foreach (var section in _sectionPanels)
@@ -184,7 +205,10 @@ public class SettingsWindow : Form
             (3, "🔔 " + Localization.Get("settings_notifications", "Benachrichtigungen")),
             (4, "⌨️ " + Localization.Get("settings_hotkeys", "Tastenkombinationen")),
             (5, "📡 " + Localization.Get("mqtt_settings")),
-            (6, "⚡ " + Localization.Get("settings_quickactions")),
+            (6, "🎵 " + Localization.Get("ma_settings", "Music Assistant")),
+            (7, "🔊 " + Localization.Get("stream_settings", "Streaming")),
+            (8, "⚡ " + Localization.Get("settings_quickactions")),
+            (9, "🖥️ " + Localization.Get("ma_widgets", "Desktop-Widgets")),
         };
 
         // Buttons erstellen (in korrekter Reihenfolge für _sidebarButtons Liste)
@@ -720,7 +744,152 @@ public class SettingsWindow : Form
         return section;
     }
 
-    // ─── Section 7: ⚡ Quick Actions ───
+    // ─── Section 7: 🎵 Music Assistant ───
+    private Panel BuildMusicAssistantSection()
+    {
+        var section = MakeSectionPanel();
+        var header = MakeSectionHeader("🎵 " + Localization.Get("ma_settings", "Music Assistant"));
+
+        // 9 Zeilen: Host | Host-Beschreibung | Port | Port-Beschreibung |
+        //          Token | Token-Beschreibung | Test | Status
+        var table = MakeFieldTable(8);
+
+        // MA Host
+        table.Controls.Add(MakeLabel(Localization.Get("ma_host", "MA-Host")), 0, 0);
+        _maHostBox = new TextBox { Dock = DockStyle.Fill, Height = 28 };
+        AddTooltip(_maHostBox, Localization.Get("ma_host_tooltip"));
+        table.Controls.Add(_maHostBox, 1, 0);
+
+        // Beschreibung: MA Host
+        var maHostDesc = MakeDescriptionLabel(Localization.Get("ma_host_desc"));
+        table.Controls.Add(maHostDesc, 0, 1);
+        table.SetColumnSpan(maHostDesc, 2);
+
+        // MA Port
+        table.Controls.Add(MakeLabel(Localization.Get("ma_port", "MA-Port")), 0, 2);
+        _maPortBox = new TextBox { Dock = DockStyle.Fill, Text = "8095", Height = 28 };
+        AddTooltip(_maPortBox, Localization.Get("ma_port_tooltip"));
+        table.Controls.Add(_maPortBox, 1, 2);
+
+        // Beschreibung: MA Port
+        var maPortDesc = MakeDescriptionLabel(Localization.Get("ma_port_desc"));
+        table.Controls.Add(maPortDesc, 0, 3);
+        table.SetColumnSpan(maPortDesc, 2);
+
+        // MA Token (password)
+        table.Controls.Add(MakeLabel(Localization.Get("ma_token", "MA-Token")), 0, 4);
+        _maTokenBox = new TextBox { Dock = DockStyle.Fill, UseSystemPasswordChar = true, Height = 28 };
+        AddTooltip(_maTokenBox, Localization.Get("ma_token_tooltip"));
+        table.Controls.Add(_maTokenBox, 1, 4);
+
+        // Beschreibung: MA Token
+        var maTokenDesc = MakeDescriptionLabel(Localization.Get("ma_token_desc"));
+        table.Controls.Add(maTokenDesc, 0, 5);
+        table.SetColumnSpan(maTokenDesc, 2);
+
+        // Verbindung testen Button
+        table.Controls.Add(MakeLabel(Localization.Get("mqtt_test_connection", "Verbindung testen")), 0, 6);
+        _maTestBtn = MakeButton("🧪 " + Localization.Get("mqtt_test_connection", "Verbindung testen"), Color.FromArgb(0, 100, 180), OnMaTestConnection);
+        AddTooltip(_maTestBtn, Localization.Get("ma_test_tooltip"));
+        table.Controls.Add(_maTestBtn, 1, 6);
+
+        // Test-Status Label
+        _maTestResultLabel = new Label
+        {
+            Text = "",
+            Font = new Font("Segoe UI", 9f),
+            ForeColor = Color.Gray,
+            AutoSize = true,
+            Margin = new Padding(0, 6, 0, 0),
+        };
+        table.Controls.Add(_maTestResultLabel, 0, 7);
+        table.SetColumnSpan(_maTestResultLabel, 2);
+
+        // In umgekehrter Reihenfolge hinzufügen
+        section.Controls.Add(table);
+        section.Controls.Add(header);
+
+        return section;
+    }
+
+    // ─── Section 8: 🔊 Streaming (Sendspin) ───
+    private Panel BuildStreamingSection()
+    {
+        var section = MakeSectionPanel();
+        var header = MakeSectionHeader("🔊 " + Localization.Get("stream_settings", "Streaming"));
+
+        // 5 Zeilen: Enable | Enable-Desc | Player-Name | Name-Desc | Status
+        var table = MakeFieldTable(5);
+
+        // Enable-Toggle
+        table.Controls.Add(MakeLabel(Localization.Get("stream_enable", "Aktiviert")), 0, 0);
+        _streamEnabledCheck = new CheckBox
+        {
+            Dock = DockStyle.Fill,
+            Text = Localization.Get("stream_enable", "Aktiviert"),
+            ForeColor = Color.Transparent,
+            AutoSize = true,
+        };
+        table.Controls.Add(_streamEnabledCheck, 1, 0);
+
+        var enableDesc = MakeDescriptionLabel(Localization.Get("stream_enable_desc"));
+        table.Controls.Add(enableDesc, 0, 1);
+        table.SetColumnSpan(enableDesc, 2);
+
+        // Player-Name
+        table.Controls.Add(MakeLabel(Localization.Get("stream_player_name", "Player-Name")), 0, 2);
+        _streamPlayerNameBox = new TextBox { Dock = DockStyle.Fill, Height = 28 };
+        AddTooltip(_streamPlayerNameBox, Localization.Get("stream_player_name_desc"));
+        table.Controls.Add(_streamPlayerNameBox, 1, 2);
+
+        var nameDesc = MakeDescriptionLabel(Localization.Get("stream_player_name_desc"));
+        table.Controls.Add(nameDesc, 0, 3);
+        table.SetColumnSpan(nameDesc, 2);
+
+        // Status-Label (Live-Verbindungsstatus des Sendspin-Clients)
+        _streamStatusLabel = new Label
+        {
+            Text = "○ " + Localization.Get("stream_status", "Deaktiviert"),
+            Font = new Font("Segoe UI", 9f),
+            ForeColor = Color.Gray,
+            AutoSize = true,
+            Margin = new Padding(0, 6, 0, 0),
+        };
+        table.Controls.Add(_streamStatusLabel, 0, 4);
+        table.SetColumnSpan(_streamStatusLabel, 2);
+        UpdateStreamStatusLabel();
+
+        // In umgekehrter Reihenfolge hinzufügen
+        section.Controls.Add(table);
+        section.Controls.Add(header);
+
+        return section;
+    }
+
+    private void UpdateStreamStatusLabel()
+    {
+        if (_streamStatusLabel == null) return;
+        if (!_config.SendspinEnabled)
+        {
+            _streamStatusLabel.Text = "○ " + Localization.Get("stream_status", "Deaktiviert");
+            _streamStatusLabel.ForeColor = Color.Gray;
+            return;
+        }
+        var app = DeskLinkApp.Instance;
+        var manager = app?._sendspinManager;
+        if (manager?.IsRunning == true)
+        {
+            _streamStatusLabel.Text = "● " + Localization.Get("stream_status_connecting", "Verbinde…");
+            _streamStatusLabel.ForeColor = WarningOrange;
+        }
+        else
+        {
+            _streamStatusLabel.Text = "● " + Localization.Get("stream_status_stopped", "Gestoppt");
+            _streamStatusLabel.ForeColor = Color.Gray;
+        }
+    }
+
+    // ─── Section 9: ⚡ Quick Actions ───
     private Panel BuildQuickActionsSection()
     {
         var section = MakeSectionPanel();
@@ -795,6 +964,72 @@ public class SettingsWindow : Form
         section.Controls.Add(qaLoadPanel);        // darüber (Load Entities Button)
         section.Controls.Add(descLabel);          // darüber (Section-Beschreibung)
         section.Controls.Add(header);              // ganz oben
+
+        return section;
+    }
+
+    // ─── Section 10: 🖥️ Desktop-Widgets (Widget-Editor) ───
+    private Panel BuildWidgetsSection()
+    {
+        var section = MakeSectionPanel();
+        var header = MakeSectionHeader("🖥️ " + Localization.Get("ma_widgets", "Desktop-Widgets"));
+
+        // Detaillierte Beschreibung oben in der Section
+        _widgetDescLabel = new Label
+        {
+            Text = Localization.Get("widget_desc_intro",
+                "Desktop-Widgets liegen hinter den Desktop-Icons (WorkerW-Schicht) und zeigen Live-Werte oder Schalter. " +
+                "Zum Positionieren: Testen-Modus aktivieren und Widget mit rechter Maustaste ziehen."),
+            AutoSize = true,
+            ForeColor = Color.Gray,
+            Font = new Font("Segoe UI", 8f),
+            Margin = new Padding(0, 4, 0, 8),
+            Dock = DockStyle.Top,
+            Tag = "desc",
+        };
+
+        // Widget-Liste
+        _widgetList = new ListBox
+        {
+            Dock = DockStyle.Top,
+            Height = 180,
+            MinimumSize = new Size(0, 100),
+            Margin = new Padding(0, 0, 0, 8),
+        };
+
+        // Buttons: Add / Edit / Remove / Test (Drag-Modus)
+        var widgetEditPanel = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Top,
+            FlowDirection = FlowDirection.LeftToRight,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            Margin = new Padding(0, 0, 0, 0),
+        };
+
+        var addBtn = MakeButton("➕ " + Localization.Get("widget_add", "Hinzufügen"), SuccessGreen, OnAddWidget);
+        AddTooltip(addBtn, Localization.Get("widget_add_tooltip", "Neues Widget erstellen"));
+
+        var editBtn = MakeButton("✏️ " + Localization.Get("settings_qa_edit", "Bearbeiten"), Color.FromArgb(100, 100, 100), OnEditWidget);
+        AddTooltip(editBtn, Localization.Get("widget_edit_tooltip", "Ausgewähltes Widget bearbeiten"));
+
+        var removeBtn = MakeButton("🗑️ " + Localization.Get("settings_qa_remove", "Entfernen"), WarningOrange, OnRemoveWidget);
+        AddTooltip(removeBtn, Localization.Get("widget_remove_tooltip", "Ausgewähltes Widget löschen"));
+
+        _widgetTestBtn = MakeButton("🎯 " + Localization.Get("widget_test", "Testen"), Color.FromArgb(0, 100, 180), OnTestWidgets);
+        AddTooltip(_widgetTestBtn, Localization.Get("widget_test_tooltip",
+            "Drag-Modus ein-/ausschalten: Widgets mit rechter Maustaste verschieben, Position wird gespeichert"));
+
+        widgetEditPanel.Controls.Add(addBtn);
+        widgetEditPanel.Controls.Add(editBtn);
+        widgetEditPanel.Controls.Add(removeBtn);
+        widgetEditPanel.Controls.Add(_widgetTestBtn);
+
+        // In umgekehrter Reihenfolge hinzufügen (Dock=Top: zuletzt hinzugefügter oben)
+        section.Controls.Add(widgetEditPanel);   // ganz unten
+        section.Controls.Add(_widgetList);        // darüber
+        section.Controls.Add(_widgetDescLabel);   // darüber
+        section.Controls.Add(header);             // ganz oben
 
         return section;
     }
@@ -990,6 +1225,302 @@ public class SettingsWindow : Form
     }
 
     // ═══════════════════════════════════════════════════════
+    // WIDGET LOGIK
+    // ═══════════════════════════════════════════════════════
+
+    private void LoadWidgetsList()
+    {
+        _widgetList.Items.Clear();
+        var widgets = WidgetConfigStore.Parse(_config);
+        foreach (var w in widgets)
+        {
+            var typeStr = w.Type switch
+            {
+                WidgetType.SensorCard => Localization.Get("widget_sensors", "Sensor"),
+                WidgetType.ToggleCard => Localization.Get("widget_toggles", "Schalter"),
+                _ => Localization.Get("widget_multi_toggle", "Multi-Schalter")
+            };
+            var entityStr = w.Type == WidgetType.MultiToggleCard
+                ? $"{w.Entities.Count}× Entity"
+                : w.EntityId;
+            _widgetList.Items.Add($"[{typeStr}] {w.Name} — {entityStr} (Monitor {w.Monitor}, {w.OffsetX}/{w.OffsetY})");
+        }
+    }
+
+    private static string WidgetTypeToConfigString(WidgetType t) => t switch
+    {
+        WidgetType.SensorCard => "sensorCard",
+        WidgetType.ToggleCard => "toggleCard",
+        _ => "multiToggleCard"
+    };
+
+    private void SaveWidgets(List<WidgetConfig> widgets)
+    {
+        WidgetConfigStore.Save(_config, widgets);
+        LoadWidgetsList();
+        // Live neu laden, damit der Manager die Widgets aktualisiert
+        DeskLinkApp.Instance?._widgetManager?.ReloadAll();
+    }
+
+    private void OnAddWidget(object? sender, EventArgs e)
+    {
+        if (_entities.Count == 0)
+        {
+            MessageBox.Show(Localization.Get("settings_load_entities_first"),
+                "HA DeskLink", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+        ShowWidgetEditor(null);
+    }
+
+    private void OnEditWidget(object? sender, EventArgs e)
+    {
+        if (_widgetList.SelectedIndex < 0)
+        {
+            MessageBox.Show(Localization.Get("settings_qa_select_first"),
+                "HA DeskLink", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+        var widgets = WidgetConfigStore.Parse(_config);
+        var idx = _widgetList.SelectedIndex;
+        if (idx >= widgets.Count) return;
+        ShowWidgetEditor(widgets[idx]);
+    }
+
+    private void OnRemoveWidget(object? sender, EventArgs e)
+    {
+        if (_widgetList.SelectedIndex < 0)
+        {
+            MessageBox.Show(Localization.Get("settings_qa_select_first"),
+                "HA DeskLink", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+        var widgets = WidgetConfigStore.Parse(_config);
+        var idx = _widgetList.SelectedIndex;
+        if (idx < widgets.Count)
+        {
+            var removedId = widgets[idx].Id;
+            widgets.RemoveAt(idx);
+            WidgetConfigStore.Save(_config, widgets);
+            LoadWidgetsList();
+            // Widget live schließen
+            DeskLinkApp.Instance?._widgetManager?.HideWidget(removedId);
+        }
+    }
+
+    private bool _widgetDragActive;
+
+    /// <summary>
+    /// Test-Button: schaltet den Drag-Modus aller Widgets um (rechte Maus = verschieben,
+    /// Position wird als Monitor+Offset gespeichert).
+    /// </summary>
+    private void OnTestWidgets(object? sender, EventArgs e)
+    {
+        var manager = DeskLinkApp.Instance?._widgetManager;
+        _widgetDragActive = !_widgetDragActive;
+        manager?.SetDragMode(_widgetDragActive);
+        _widgetTestBtn.Text = _widgetDragActive
+            ? "🎯 " + Localization.Get("widget_test_active", "Drag-Modus aktiv — klick zum Beenden")
+            : "🎯 " + Localization.Get("widget_test", "Testen");
+    }
+
+    /// <summary>Widget-Editor-Dialog (Add + Edit). existing = null → neu anlegen.</summary>
+    private void ShowWidgetEditor(WidgetConfig? existing)
+    {
+        var isNew = existing == null;
+        var wc = existing ?? new WidgetConfig();
+
+        using var dialog = new Form
+        {
+            Text = isNew
+                ? Localization.Get("widget_add", "Widget hinzufügen")
+                : Localization.Get("settings_qa_edit", "Widget bearbeiten"),
+            Size = new Size(520, 460),
+            StartPosition = FormStartPosition.CenterParent,
+            MinimizeBox = false,
+            MaximizeBox = false,
+        };
+
+        var table = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 9, Padding = new Padding(16) };
+        table.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 130));
+        table.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+
+        // Typ
+        table.Controls.Add(MakeLabel(Localization.Get("widget_type", "Typ:")), 0, 0);
+        var typeCombo = new ComboBox { Dock = DockStyle.Fill, DropDownStyle = ComboBoxStyle.DropDownList };
+        typeCombo.Items.Add(new WidgetTypeItem(WidgetType.SensorCard, Localization.Get("widget_sensors", "Sensor-Karte")));
+        typeCombo.Items.Add(new WidgetTypeItem(WidgetType.ToggleCard, Localization.Get("widget_toggles", "Schalter-Karte")));
+        typeCombo.Items.Add(new WidgetTypeItem(WidgetType.MultiToggleCard, Localization.Get("widget_multi_toggle", "Multi-Schalter-Karte (2-4)")));
+        var typeIdx = typeCombo.Items.OfType<WidgetTypeItem>()
+            .ToList().FindIndex(i => i.Type == wc.Type);
+        typeCombo.SelectedIndex = typeIdx >= 0 ? typeIdx : 0;
+        table.Controls.Add(typeCombo, 1, 0);
+
+        // Name
+        table.Controls.Add(MakeLabel(Localization.Get("settings_qa_name", "Name:")), 0, 1);
+        var nameBox = new TextBox { Dock = DockStyle.Fill, Text = wc.Name };
+        table.Controls.Add(nameBox, 1, 1);
+
+        // Entity (Sensor/Toggle)
+        table.Controls.Add(MakeLabel(Localization.Get("settings_qa_entity", "Entity:")), 0, 2);
+        var entityCombo = new ComboBox { Dock = DockStyle.Fill, DropDownStyle = ComboBoxStyle.DropDownList };
+        foreach (var (entityId, friendlyName) in _entities)
+            entityCombo.Items.Add(new EntityItem(entityId, friendlyName));
+        for (int i = 0; i < entityCombo.Items.Count; i++)
+        {
+            if (entityCombo.Items[i] is EntityItem ei && ei.EntityId == wc.EntityId)
+            {
+                entityCombo.SelectedIndex = i;
+                break;
+            }
+        }
+        if (entityCombo.SelectedIndex < 0 && entityCombo.Items.Count > 0) entityCombo.SelectedIndex = 0;
+        table.Controls.Add(entityCombo, 1, 2);
+
+        // MultiToggle-Entities (2-4) via CheckedListBox mit Entity-Auswahl
+        table.Controls.Add(MakeLabel(Localization.Get("widget_entities", "Entities:")), 0, 3);
+        var multiCheck = new CheckedListBox { Dock = DockStyle.Fill, CheckOnClick = true };
+        foreach (var (entityId, friendlyName) in _entities)
+        {
+            var idx = multiCheck.Items.Add(new EntityItem(entityId, friendlyName));
+            if (wc.Entities.Any(x => x.EntityId == entityId))
+                multiCheck.SetItemChecked(idx, true);
+        }
+        table.Controls.Add(multiCheck, 1, 3);
+        table.RowStyles.Add(new RowStyle(SizeType.Absolute, 32)); // row 0
+        table.RowStyles.Add(new RowStyle(SizeType.Absolute, 32)); // row 1
+        table.RowStyles.Add(new RowStyle(SizeType.Absolute, 32)); // row 2
+        table.RowStyles.Add(new RowStyle(SizeType.Percent, 100)); // row 3 multiCheck
+        table.RowStyles.Add(new RowStyle(SizeType.Absolute, 32)); // row 4 monitor
+        table.RowStyles.Add(new RowStyle(SizeType.Absolute, 32)); // row 5 offsets
+        table.RowStyles.Add(new RowStyle(SizeType.Absolute, 32)); // row 6 clickThrough
+        table.RowStyles.Add(new RowStyle(SizeType.Absolute, 32)); // row 7 offset fields
+        table.RowStyles.Add(new RowStyle(SizeType.Absolute, 40)); // row 8 buttons
+
+        // Monitor
+        table.Controls.Add(MakeLabel(Localization.Get("settings_notif_monitor", "Monitor:")), 0, 4);
+        var monitorCombo = new ComboBox { Dock = DockStyle.Fill, DropDownStyle = ComboBoxStyle.DropDownList };
+        for (int i = 0; i < Screen.AllScreens.Length; i++)
+        {
+            var label = i == 0
+                ? Localization.Get("settings_notif_primary_monitor", "Primärer Monitor")
+                : $"Monitor {i + 1}";
+            monitorCombo.Items.Add(label);
+        }
+        monitorCombo.SelectedIndex = Math.Min(wc.Monitor, monitorCombo.Items.Count - 1);
+        table.Controls.Add(monitorCombo, 1, 4);
+
+        // Offset X/Y
+        table.Controls.Add(MakeLabel(Localization.Get("widget_position", "Position (Offset):")), 0, 5);
+        var offsetPanel = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoSize = true };
+        var offX = new NumericUpDown { Minimum = -4000, Maximum = 8000, Value = wc.OffsetX, Width = 80 };
+        var offY = new NumericUpDown { Minimum = -4000, Maximum = 8000, Value = wc.OffsetY, Width = 80 };
+        offsetPanel.Controls.Add(offX);
+        offsetPanel.Controls.Add(new Label { Text = "X", AutoSize = true, Margin = new Padding(8, 8, 8, 0) });
+        offsetPanel.Controls.Add(offY);
+        offsetPanel.Controls.Add(new Label { Text = "Y", AutoSize = true, Margin = new Padding(8, 8, 0, 0) });
+        table.Controls.Add(offsetPanel, 1, 5);
+
+        // Click-Through
+        table.Controls.Add(MakeLabel(Localization.Get("widget_click_through", "Klick-Durchlässig:")), 0, 6);
+        var clickThroughCheck = new CheckBox
+        {
+            Text = Localization.Get("widget_click_through_desc", "Maus-Klicks gehen durch das Widget hindurch (nur Anzeige)"),
+            AutoSize = true,
+            Checked = wc.ClickThrough,
+        };
+        table.Controls.Add(clickThroughCheck, 1, 6);
+
+        // Buttons
+        var btnPanel = new FlowLayoutPanel { Dock = DockStyle.Fill, FlowDirection = FlowDirection.LeftToRight };
+        var saveBtn = new Button { Text = "💾 " + Localization.Get("settings_save", "Speichern"), BackColor = AccentBlue, ForeColor = Color.White, FlatStyle = FlatStyle.Flat, AutoSize = true };
+        saveBtn.FlatAppearance.BorderSize = 0;
+        var cancelBtn = new Button { Text = Localization.Get("settings_cancel", "Abbrechen"), BackColor = Color.FromArgb(100, 100, 100), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, AutoSize = true };
+        cancelBtn.FlatAppearance.BorderSize = 0;
+        btnPanel.Controls.Add(saveBtn);
+        btnPanel.Controls.Add(cancelBtn);
+        table.Controls.Add(btnPanel, 1, 8);
+
+        // Typ-abhängige Felder ein-/ausblenden
+        void UpdateVisibility()
+        {
+            var type = ((WidgetTypeItem?)typeCombo.SelectedItem)?.Type ?? WidgetType.SensorCard;
+            var isMulti = type == WidgetType.MultiToggleCard;
+            multiCheck.Visible = isMulti;
+            entityCombo.Visible = !isMulti;
+        }
+        typeCombo.SelectedIndexChanged += (s, args) => UpdateVisibility();
+        UpdateVisibility();
+
+        cancelBtn.Click += (s, args) => dialog.Close();
+
+        saveBtn.Click += (s, args) =>
+        {
+            var type = ((WidgetTypeItem?)typeCombo.SelectedItem)?.Type ?? WidgetType.SensorCard;
+            wc.Type = type;
+            wc.Name = nameBox.Text.Trim();
+            wc.Monitor = Math.Max(0, monitorCombo.SelectedIndex);
+            wc.OffsetX = (int)offX.Value;
+            wc.OffsetY = (int)offY.Value;
+            wc.ClickThrough = clickThroughCheck.Checked;
+            wc.Entities.Clear();
+
+            bool valid = true;
+            if (type == WidgetType.MultiToggleCard)
+            {
+                foreach (var checkedItem in multiCheck.CheckedItems)
+                {
+                    if (checkedItem is EntityItem ei)
+                        wc.Entities.Add(new WidgetEntity(ei.EntityId, ei.FriendlyName));
+                }
+                if (wc.Entities.Count is < 2 or > 4)
+                {
+                    MessageBox.Show(Localization.Get("widget_multi_count_error", "Multi-Schalter benötigt 2 bis 4 Entities."),
+                        "HA DeskLink", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    valid = false;
+                }
+                wc.EntityId = "";
+            }
+            else
+            {
+                if (entityCombo.SelectedItem is EntityItem item)
+                    wc.EntityId = item.EntityId;
+                if (string.IsNullOrEmpty(wc.EntityId))
+                {
+                    MessageBox.Show(Localization.Get("settings_load_entities_first"),
+                        "HA DeskLink", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    valid = false;
+                }
+            }
+            if (string.IsNullOrEmpty(wc.Name)) wc.Name = wc.EntityId;
+
+            if (!valid) return;
+
+            var widgets = WidgetConfigStore.Parse(_config);
+            if (isNew) widgets.Add(wc);
+            else
+            {
+                var i = widgets.FindIndex(x => x.Id == wc.Id);
+                if (i >= 0) widgets[i] = wc; else widgets.Add(wc);
+            }
+            SaveWidgets(widgets);
+            dialog.Close();
+        };
+
+        dialog.Controls.Add(table);
+        ApplyThemeToControls(dialog, _config.Theme);
+        dialog.ShowDialog(this);
+    }
+
+    private class WidgetTypeItem
+    {
+        public WidgetType Type { get; }
+        public string Label { get; }
+        public WidgetTypeItem(WidgetType type, string label) { Type = type; Label = label; }
+        public override string ToString() => Label;
+    }
+
+    // ═══════════════════════════════════════════════════════
     // BUTTON HANDLERS
     // ═══════════════════════════════════════════════════════
 
@@ -1067,12 +1598,31 @@ public class SettingsWindow : Form
         _config.MqttAutoConfigured = false; // manuelles Speichern
         _config.MqttBrokerFallback = _mqttFallbackBox.Text.Trim();
 
+        // Music-Assistant-Einstellungen
+        _config.MaHost = _maHostBox.Text.Trim();
+        if (int.TryParse(_maPortBox.Text.Trim(), out var maPort) && maPort > 0 && maPort <= 65535)
+            _config.MaPort = maPort;
+        // Token nur übernehmen, wenn eines eingegeben wurde (leer lassen = bestehenden behalten)
+        if (!string.IsNullOrEmpty(_maTokenBox.Text))
+            _config.MaToken = _maTokenBox.Text.Trim();
+
+        // Streaming (Sendspin)-Einstellungen
+        _config.SendspinEnabled = _streamEnabledCheck.Checked;
+        _config.SendspinPlayerName = string.IsNullOrWhiteSpace(_streamPlayerNameBox.Text.Trim())
+            ? "HA DeskLink PC"
+            : _streamPlayerNameBox.Text.Trim();
+
         _config.Save();
         if (_config.Autostart) Autostart.Enable(); else Autostart.Disable();
         ApplyTheme(_config.Theme);
         // Sprache neu laden, falls sie geändert wurde
         Localization.LoadLanguage(_config.Language);
         _statusLabel.Text = $"✓ {Localization.Get("settings_saved")}";
+
+        // Sendspin-Client bei Konfigurationsänderung neu starten
+        var app = DeskLinkApp.Instance;
+        app?._sendspinManager?.Restart();
+        UpdateStreamStatusLabel();
     }
 
     /// <summary>
@@ -1546,6 +2096,18 @@ public class SettingsWindow : Form
         _mqttSslCheck.Checked = _config.MqttUseSsl;
         _mqttFallbackBox.Text = _config.MqttBrokerFallback ?? "";
         UpdateMqttStatusLabel();
+
+        // Music-Assistant-Einstellungen laden (Token wurde von Config.Load entschlüsselt)
+        _maHostBox.Text = _config.MaHost ?? "";
+        _maPortBox.Text = _config.MaPort.ToString();
+        _maTokenBox.Text = _config.MaToken ?? "";
+
+        // Streaming (Sendspin)-Einstellungen laden
+        _streamEnabledCheck.Checked = _config.SendspinEnabled;
+        _streamPlayerNameBox.Text = string.IsNullOrWhiteSpace(_config.SendspinPlayerName)
+            ? "HA DeskLink PC"
+            : _config.SendspinPlayerName;
+        UpdateStreamStatusLabel();
     }
 
     private void UpdateMqttStatusLabel()
@@ -1613,6 +2175,44 @@ public class SettingsWindow : Form
         {
             btn.Enabled = true;
             btn.Text = "🔌 " + Localization.Get("mqtt_test_connection", "Verbindung testen");
+        }
+    }
+
+    private async void OnMaTestConnection(object? sender, EventArgs e)
+    {
+        var host = _maHostBox.Text.Trim();
+        var portText = _maPortBox.Text.Trim();
+        var token = _maTokenBox.Text;
+
+        if (string.IsNullOrWhiteSpace(host) || !int.TryParse(portText, out var port) || port < 1 || port > 65535)
+        {
+            _maTestResultLabel.Text = "✗ " + Localization.Get("ma_test_invalid", "Bitte Host und Port angeben.");
+            _maTestResultLabel.ForeColor = DangerRed;
+            return;
+        }
+
+        var btn = sender as Button ?? _maTestBtn;
+        btn.Enabled = false;
+        btn.Text = "🧪 " + Localization.Get("mqtt_testing", "Teste...");
+        _maTestResultLabel.Text = "⏳ " + Localization.Get("mqtt_testing_status", "Teste Verbindung...");
+        _maTestResultLabel.ForeColor = Color.Gray;
+
+        try
+        {
+            var info = await System.Threading.Tasks.Task.Run(() => MaManager.TestConnectionAsync(host, port, token));
+            _maTestResultLabel.Text = $"✓ {Localization.Get("mqtt_test_success", "Verbindung erfolgreich!")}" +
+                $" – {info.Name} (MA v{info.ServerVersion})";
+            _maTestResultLabel.ForeColor = SuccessGreen;
+        }
+        catch (Exception ex)
+        {
+            _maTestResultLabel.Text = $"✗ {Localization.Get("mqtt_test_failed", "Verbindung fehlgeschlagen")}: {ex.Message}";
+            _maTestResultLabel.ForeColor = DangerRed;
+        }
+        finally
+        {
+            btn.Enabled = true;
+            btn.Text = "🧪 " + Localization.Get("mqtt_test_connection", "Verbindung testen");
         }
     }
 

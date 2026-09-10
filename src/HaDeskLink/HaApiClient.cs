@@ -258,6 +258,33 @@ public class HaApiClient
     }
 
     /// <summary>
+    /// Einzelnen Entity-State abrufen (für Desktop-Widgets).
+    /// Gibt (state, unit_of_measurement) zurück; null wenn Entity nicht existiert.
+    /// </summary>
+    public async Task<(string State, string? Unit)?> GetEntityStateAsync(string entityId)
+    {
+        if (string.IsNullOrEmpty(_haUrl) || string.IsNullOrEmpty(_token))
+            throw new InvalidOperationException("Not connected to HA");
+
+        var url = $"{_haUrl}/api/states/{entityId}";
+        var req = new HttpRequestMessage(HttpMethod.Get, url);
+        req.Headers.Add("Authorization", $"Bearer {_token}");
+        var resp = await _http.SendAsync(req);
+        if (!resp.IsSuccessStatusCode) return null;
+
+        var json = await resp.Content.ReadAsStringAsync();
+        using var doc = JsonDocument.Parse(json);
+        var root = doc.RootElement;
+        var state = root.TryGetProperty("state", out var st) ? st.GetString() ?? "unknown" : "unknown";
+        string? unit = null;
+        if (root.TryGetProperty("attributes", out var attrs) &&
+            attrs.TryGetProperty("unit_of_measurement", out var u) &&
+            u.ValueKind == JsonValueKind.String)
+            unit = u.GetString();
+        return (state, unit);
+    }
+
+    /// <summary>
     /// Upload a screenshot as a HA event with base64 image data.
     /// Event type: ha_desklink_screenshot
     /// </summary>

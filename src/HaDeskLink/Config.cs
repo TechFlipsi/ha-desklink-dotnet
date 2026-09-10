@@ -98,6 +98,21 @@ public class Config
     /// </summary>
     public string MqttBrokerFallback { get; set; } = "";
 
+    // Music Assistant (optional)
+    /// <summary>MA host/IP (empty = MA integration disabled).</summary>
+    public string MaHost { get; set; } = "";
+    /// <summary>MA API port (default 8095; TrueNAS app: 30278).</summary>
+    public int MaPort { get; set; } = 8095;
+    /// <summary>MA long-lived access token (runtime only, never saved to config file).</summary>
+    public string MaToken { get; set; } = "";
+    public string? MaTokenEncrypted { get; set; } = "";
+
+    // Sendspin streaming (optional)
+    /// <summary>Sendspin streaming enabled (player role on this PC). Default: false.</summary>
+    public bool SendspinEnabled { get; set; } = false;
+    /// <summary>Player name advertised to Music Assistant. Default: 'HA DeskLink PC'.</summary>
+    public string SendspinPlayerName { get; set; } = "HA DeskLink PC";
+
     /// <summary>
     /// Webhook server bind address. "+" = all interfaces (default), "localhost" = local only.
     /// Set to "localhost" for better security when HA is on the same machine.
@@ -126,6 +141,15 @@ public class Config
     /// Format: [{"command":"launch_spotify","path":"spotify","name":"Spotify"}]
     /// </summary>
     public string AppLaunchers { get; set; } = "[]";
+
+    /// <summary>
+    /// Desktop-Widgets: JSON-Array von Widget-Definitionen.
+    /// Format: [{"id":"ab12cd34","type":"sensorCard","entityId":"sensor.cpu_temp","name":"CPU",
+    ///           "monitor":0,"offsetX":40,"offsetY":40,"clickThrough":false,
+    ///           "entities":[{"entityId":"light.living","name":"Wohnzimmer"}]}]
+    /// type: "sensorCard" | "toggleCard" | "multiToggleCard"
+    /// </summary>
+    public string Widgets { get; set; } = "[]";
 
     private string ConfigPath => Path.Combine(ConfigDir, "config.json");
 
@@ -212,6 +236,22 @@ public class Config
                 config.MqttPassword = decrypted;
         }
 
+        // Migration: if MaTokenEncrypted is empty but MaToken has a value,
+        // encrypt MaToken and clear the plaintext
+        if (string.IsNullOrEmpty(config.MaTokenEncrypted) && !string.IsNullOrEmpty(config.MaToken))
+        {
+            config.MaTokenEncrypted = EncryptString(config.MaToken);
+            config.MaToken = ""; // Clear plaintext
+            config.Save(); // Save encrypted version immediately
+        }
+        else if (!string.IsNullOrEmpty(config.MaTokenEncrypted))
+        {
+            // Decrypt the MA token for use in the app
+            var decrypted = DecryptString(config.MaTokenEncrypted);
+            if (!string.IsNullOrEmpty(decrypted))
+                config.MaToken = decrypted;
+        }
+
         return config;
     }
 
@@ -232,6 +272,18 @@ public class Config
         if (!string.IsNullOrEmpty(MqttPassword))
         {
             MqttPasswordEncrypted = EncryptString(MqttPassword);
+        }
+
+        // Always encrypt the MA token before saving
+        if (!string.IsNullOrEmpty(MaToken))
+        {
+            MaTokenEncrypted = EncryptString(MaToken);
+        }
+        else
+        {
+            // Token was cleared (or decryption failed on load) — also drop the
+            // stale ciphertext so a cleared token really stays cleared.
+            MaTokenEncrypted = null;
         }
 
         // Create a copy for serialization that has HaToken and MqttPassword cleared
@@ -262,11 +314,18 @@ public class Config
             MqttUseSsl = MqttUseSsl,
             MqttAutoConfigured = MqttAutoConfigured,
             MqttBrokerFallback = MqttBrokerFallback,
+            MaHost = MaHost,
+            MaPort = MaPort,
+            MaToken = "", // NEVER save plaintext token
+            MaTokenEncrypted = MaTokenEncrypted,
             CustomCommands = CustomCommands,
             AppLaunchers = AppLaunchers,
             WebhookBindAddress = WebhookBindAddress,
             NotificationPosition = NotificationPosition,
-            NotificationMonitor = NotificationMonitor
+            NotificationMonitor = NotificationMonitor,
+            Widgets = Widgets,
+            SendspinEnabled = SendspinEnabled,
+            SendspinPlayerName = SendspinPlayerName
         };
 
         var json = JsonSerializer.Serialize(saveConfig, new JsonSerializerOptions { WriteIndented = true });
