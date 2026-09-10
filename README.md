@@ -10,6 +10,14 @@
 
 > 🔍 **Suchst du einen Home Assistant Desktop-Companion?** HA DeskLink verbindet deinen PC direkt mit Home Assistant – Sensordaten, Systemstatus und Steuerelemente live auf dem Desktop. Kein Browser, kein Umweg.
 
+> 🌍 **Looking for a Home Assistant desktop companion for Windows?** HA DeskLink connects your PC directly to Home Assistant – sensor data, system status and controls live on your desktop. No browser, no detour.
+
+## ⬇️ Download
+
+**[⬇️ Download HA DeskLink for Windows (.exe)](https://github.com/TechFlipsi/ha-desklink-windows/releases/latest)** — Installer für Windows 10/11
+
+Alle Versionen: [Releases](https://github.com/TechFlipsi/ha-desklink-windows/releases)
+
 <!-- SEO: home assistant desktop app, home assistant windows companion, hass desktop, home assistant sensor monitor, smart home desktop widget -->
 
 📖 **[Betriebsanleitung / Manual](MANUAL.md)** – Umfassende Anleitung: Installation, alle Sensoren, Befehle, Quick Actions, MQTT, Auto-Update, Einstellungen, Sicherheit & Fehlerbehebung (Deutsch)
