@@ -91,19 +91,6 @@ jobs:
           name: HA-DeskLink-Installer
           path: dist/
 
-      - name: Download portable publish
-        uses: actions/download-artifact@v4
-        with:
-          name: HA-DeskLink-Publish
-          path: portable/
-
-      - name: Create portable zip
-        shell: bash
-        run: |
-          VERSION="${{ steps.version.outputs.VERSION }}"
-          (cd portable && zip -qr "../HA_DeskLink_Portable_${VERSION}.zip" .)
-          ls -lh "HA_DeskLink_Portable_${VERSION}.zip"
-
       - name: Extract release notes from CHANGELOG
         shell: bash
         run: |
@@ -116,8 +103,6 @@ jobs:
             echo "## Installation"
             echo ""
             echo "Setup: \`HA_DeskLink_Setup_${VERSION}.exe\` herunterladen und ausfuehren. Installiert nach \`C:\\Program Files\\HA DeskLink\\\`."
-            echo ""
-            echo "Portable: \`HA_DeskLink_Portable_${VERSION}.zip\` entpacken und \`HA_DeskLink.exe\` starten - keine Installation noetig."
             echo ""
             echo "**Wichtig:** Als Administrator starten fuer CPU/GPU-Temperatur!"
           } > release_notes.md
@@ -140,7 +125,6 @@ jobs:
           fail_on_unmatched_files: true
           files: |
             dist/HA_DeskLink_Setup_*.exe
-            HA_DeskLink_Portable_*.zip
           body_path: release_notes.md
           generate_release_notes: false
 
